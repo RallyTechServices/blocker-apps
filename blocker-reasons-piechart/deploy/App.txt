@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historical Blocker Reasons</title>
+    <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
+    <!--  Build Date: Thu Jan 08 2015 13:55:46 GMT-0700 (MST) -->
+    
+    <script type="text/javascript">
+        var APP_BUILD_DATE = "Thu Jan 08 2015 13:55:46 GMT-0700 (MST)";
+        var CHECKSUM = 3234933626;
+    </script>
+    
+    <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function() {
+             
+/**
+ * A link that pops up a version dialog box
+ */
+
+Ext.define('Rally.technicalservices.InfoLink',{
+    extend: 'Ext.Component',
+    alias: 'widget.tsinfolink',
+    
+    /**
+     * @cfg {String} informationHtml
+     * Additional text to be displayed on the popup dialog (for exmaple,
+     * to add a description of the app's use or functionality)
+     */
+    informationHtml: null,
+    
+    /**
+     * 
+     * cfg {String} title
+     * The title for the dialog box
+     */
+     title: "Build Information",
+    
+    renderTpl: "<div id='{id}-infolinkWrap' class='tsinfolink'>i</div>",
+
+    initComponent: function() {
+        this.callParent(arguments);
+       
+    },
+    
+    onRender: function() {
+        this.callParent(arguments);
+        this.mon(this.el,'click',this.onClick,this);
+    },
+    _generateChecksum: function(string){
+        var chk = 0x12345678,
+            i;
+        string = string.replace(/var CHECKSUM = .*;/,"");
+        string = string.replace(/\s/g,"");  //Remove all whitespace from the string.
+        
+        for (i = 0; i < string.length; i++) {
+            chk += (string.charCodeAt(i) * i);
+        }
+    
+        return chk;
+    },
+    _checkChecksum: function(container) {
+        var me = this;
+        Ext.Ajax.request({
+            url: document.URL,
+            params: {
+                id: 1
+            },
+            success: function (response) {
+                text = response.responseText;
+                if ( CHECKSUM ) {
+                    if ( CHECKSUM !== me._generateChecksum(text) ) {
+                        console.log("Checksums don't match!");
+                        if ( me.dialog ) {
+                            me.dialog.add({xtype:'container',html:'Checksums do not match'});
+                        }
+                    }
+                }
+            }
+        });
+    },
+    onClick: function(e) {
+        var me = this;
+        this._checkChecksum(this);
+        
+        var dialog_items = [];
+        
+        if ( this.informationHtml ) {
+            dialog_items.push({
+                xtype:'container',
+                html: this.informationHtml
+            });
+        }
+                
+        dialog_items.push({
+            xtype:'container',
+            html:"This app was created by the Rally Technical Services Team."
+        });
+        
+        if ( APP_BUILD_DATE ) {
+            dialog_items.push({
+                xtype:'container',
+                html:'Build date/time: ' + APP_BUILD_DATE
+            });
+        }
+        
+        if (this.dialog){this.dialog.destroy();}
+        this.dialog = Ext.create('Rally.ui.dialog.Dialog',{
+            defaults: { padding: 5, margin: 5 },
+            closable: true,
+            draggable: true,
+            title: me.title,
+            items: dialog_items
+        });
+        this.dialog.show();
+    }
+});
+
+/*
+ */
+Ext.define('Rally.technicalservices.Logger',{
+    constructor: function(config){
+        Ext.apply(this,config);
+    },
+    log: function(args){
+        var timestamp = "[ " + Ext.util.Format.date(new Date(), "Y-m-d H:i:s.u") + " ]";
+        //var output_args = arguments;
+        //output_args.unshift( [ "[ " + timestamp + " ]" ] );
+        //output_args = Ext.Array.push(output_args,arguments);
+        
+        var output_args = [];
+        output_args = Ext.Array.push(output_args,[timestamp]);
+        output_args = Ext.Array.push(output_args, Ext.Array.slice(arguments,0));
+
+        window.console && console.log.apply(console,output_args);
+    }
+
+});
+
+    Ext.define("Rally.technicalservices.BlockedArtifact.Store", {
+        extend : 'Ext.util.Observable',
+        config: {
+            startDate: Rally.util.DateTime.add(new Date(),"month",-3),
+            endDate: new Date(),
+            project: 13292412574, //null,
+        },
+        types: ['HierarchicalRequirement','Defect','Task'],
+        hydrate: ['ScheduleState','State','_TypeHierarchy'],
+        fetch: ['Blocked','BlockedReason','Blocker','ScheduleState','State','_TypeHierarchy'],
+        find: {$or: [
+           {"BlockedReason": {$exists: true}},
+           {"_PreviousValues.BlockedReason": {$exists: true}}
+        ]},
+        constructor: function(config){
+            this.addEvents('artifactsloaded');       
+            this.initConfig(config);
+            this.callParent(arguments);
+            this.loadArtifacts();
+        },
+        loadArtifacts: function(){
+            var me = this; 
+            Ext.create('Rally.data.lookback.SnapshotStore', {
+                autoLoad: true,
+                listeners: {
+                    load: function(store, data, success) {
+                        //process data
+                        var processed_data = me._processData(data);
+                        me.fireEvent('artifactsloaded', processed_data,success);
+                    }
+                },
+                fetch: this.fetch,
+                hydrate: this.hydrate,
+                find: this.find,
+                filters: [
+                    {
+                        property: '_TypeHierarchy',
+                        operator: 'in',
+                        value: this.types
+                    },{
+                        property: '_ProjectHierarchy',
+                        operator: 'in',
+                        value: [this.project]
+                    }
+                ],
+                compress: true 
+            });
+        },
+        
+        _processData: function(data){
+            var stats = {};  
+            Ext.each(data, function(snap){
+                var obj_id = snap.get('ObjectID');
+                if (stats[obj_id] == undefined){
+                    stats[obj_id] = Ext.create('Rally.technicalservices.BlockedArtifact',snap);
+                } else {
+                    stats[obj_id].update(snap);
+                }
+            },this);
+            return stats;
+        }        
+    });
+
+    Ext.define("Rally.technicalservices.BlockedArtifact", {
+
+        objectID: 0,
+        artifactType: null,
+        blockedDate: null,
+        unblockedDate: null,
+        blockedReason: null,
+        blockedDateState: null,
+        unblockedDateState: null, 
+        blockedReason: null,
+        blocker: 0, 
+        
+        constructor: function(snapshot){
+            this.objectID = snapshot.get('ObjectID');
+            this.artifactType = snapshot.get('_TypeHierarchy').splice(-1)[0];
+            this.update(snapshot);
+        },
+        update: function(snapshot){
+            
+            var blocked = snapshot.get('Blocked');
+            var snap_date = snapshot.get('_ValidFrom');
+            var state = snapshot.get('ScheduleState') || snapshot.get('State');
+            
+            if (blocked && ((this.blockedDate == null)||(this.blockedDate < snap_date))){
+                this.blockedDate = snap_date;  
+                this.blockedReason = snapshot.get('BlockedReason');
+                this.blocker = snapshot.get('Blocker');
+                this.blockedDateState = state;
+                
+            } else if (blocked == false && ((this.unblockedDate == null)||(this.unblockedDate > snap_date))) {
+                    this.unblockedDate = snap_date;  
+                    this.unblockedDateState = state;
+            }            
+        }
+    });
+Ext.define('Rally.technicalservices.BlockedToolbox',{
+    singleton: true,
+    getCountsByReason: function(artifacts){
+        var counts = {};
+        Ext.Object.each(artifacts, function(key, artifact){
+            if (artifact.blockedReason){
+                if (counts[artifact.blockedReason] == undefined){
+                    counts[artifact.blockedReason] = 0; 
+                } 
+                counts[artifact.blockedReason]++; 
+            }
+        },this);
+        return counts;  
+    },
+    bucketDataByDate: function(artifacts, artifactProperty, dateInterval, dateFormat, bucketedDateStrings){
+        var buckets = {};
+        console.log(bucketedDateStrings);
+        Ext.each(bucketedDateStrings, function(str){
+            buckets[str] = 0;
+        });
+        console.log(buckets);
+        
+        Ext.Object.each(artifacts, function(key, artifact){
+            if (artifact[artifactProperty]){
+                var date = Rally.util.DateTime.fromIsoString(artifact[artifactProperty]);
+                var bucket = Rally.util.DateTime.format(date,dateFormat);
+                if (Ext.Array.contains(bucketedDateStrings,bucket)){
+                    buckets[bucket]++;
+                }
+            }
+        });
+        
+        return buckets;  
+    },
+    getDateBucketsForArtifacts: function(artifacts, artifactProperties, dateInterval, dateFormat){
+        var earliest_date = new Date();
+        var latest_date = Rally.util.DateTime.add(earliest_date,"year",-20);
+        
+        Ext.Object.each(artifacts,function(key,artifact){
+            Ext.each(artifactProperties, function(prop){
+                if (artifact[prop]){
+                    var date = Rally.util.DateTime.fromIsoString(artifact[prop]);
+                    if (date < earliest_date){
+                        earliest_date = date; 
+                    }
+                    if (date > latest_date){
+                        latest_date = date;
+                    }                
+                }
+            })
+        });
+        
+        var buckets = [];
+        var date = earliest_date; 
+        while (date < latest_date && earliest_date < latest_date){
+            var bucket = Rally.util.DateTime.format(date,dateFormat);
+            console.log(date, bucket);
+            if (!Ext.Array.contains(buckets, bucket)){
+                buckets.push(bucket);
+            }
+            date = Rally.util.DateTime.add(date,dateInterval,1);
+        }
+        return buckets;
+    }
+});
+Ext.define('CustomApp', {
+    extend: 'Rally.app.App',
+    componentCls: 'app',
+    logger: new Rally.technicalservices.Logger(),
+    items: [
+        {xtype:'container',itemId:'display_box'},
+        {xtype:'tsinfolink'}
+    ],
+    chartTitle: 'Blocker Causes',
+    launch: function() {
+
+        Ext.create('Rally.technicalservices.BlockedArtifact.Store',{
+            listeners: {
+                scope: this,
+                artifactsloaded: function(blockedArtifacts,success){
+                    this.logger.log('artifactsLoaded', blockedArtifacts, success);
+                    this._buildChart(blockedArtifacts);
+                }
+            }
+        });
+    },
+    _buildChart: function(artifacts){
+        
+        var counts = Rally.technicalservices.BlockedToolbox.getCountsByReason(artifacts);
+        
+        var series_data = []; 
+        Ext.Object.each(counts, function(key,val){
+            series_data.push([key,val]);
+        },this);
+        var series = [{type: 'pie', name: this.chartTitle, data: series_data}];
+        
+        this.logger.log('_buildCharts', artifacts, series);
+        
+        this.down('#display_box').add({
+            xtype: 'rallychart',
+            chartData: {
+                series: series,
+            }, 
+            chartConfig: {
+                    chart: {
+                        type: 'pie'
+                    },
+                    title: {
+                        text: this.chartTitle
+                    },
+                    plotOptions: {
+                        pie: {
+                            dataLabels: {
+                                enabled: true,
+                                format: '<b>{point.name}</b><br/>{point.percentage:.0f}%'
+                            }
+                        }
+                    }
+                }
+            });
+    }
+});
+            
+               Rally.launchApp('CustomApp', {
+                   name: 'Historical Blocker Reasons'
+               });
+        });
+    </script>
+    
+    <style type="text/css">
+
+.app {
+}
+.tsinfolink {
+    position:absolute;
+    right:0px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    text-align: center;
+    color: white;
+    background: #C0C0C0;
+    border-style: solid;
+    border-width: 1px;
+    margin-top: 25px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+    </style>
+
+</head>
+<body></body>
+</html>
