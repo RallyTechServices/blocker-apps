@@ -8,7 +8,7 @@
         blockedDateState: null,
         unblockedDateState: null, 
         blockedReason: null,
-        blocker: 0, 
+        blocker: 0,
         
         constructor: function(snapshot){
             this.objectID = snapshot.get('ObjectID');
@@ -31,5 +31,14 @@
                     this.unblockedDate = snap_date;  
                     this.unblockedDateState = state;
             }            
+        },
+        getDaysToResolution: function(){
+            console.log('daysToResolution',this.blockedReason, this.blockedDate, this.unblockedDate);
+            if (this.blockedReason && this.blockedDate && this.unblockedDate){
+                var blocked_date = Rally.util.DateTime.fromIsoString(this.blockedDate);
+                var unblocked_date = Rally.util.DateTime.fromIsoString(this.unblockedDate);
+                return Rally.util.DateTime.getDifference(unblocked_date, blocked_date, "day");
+            }
+            return null; 
         }
     });

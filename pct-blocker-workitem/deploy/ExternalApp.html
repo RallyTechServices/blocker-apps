@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Blocker Arrival Kill</title>
+    <title>Blocker Percentage of WorkItems</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Jan 13 2015 10:22:22 GMT-0700 (MST) -->
+    <!--  Build Date: Tue Jan 13 2015 10:22:55 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Jan 13 2015 10:22:22 GMT-0700 (MST)";
-        var CHECKSUM = 41743933102;
+        var APP_BUILD_DATE = "Tue Jan 13 2015 10:22:55 GMT-0700 (MST)";
+        var CHECKSUM = [%= checksum %];
     </script>
     
-    <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc3/sdk-debug.js?apiKey=_PUT_APIKEY_HERE_"></script>
 
     <script type="text/javascript">
         Rally.onReady(function() {
@@ -917,122 +917,71 @@ Ext.define('CustomApp', {
     componentCls: 'app',
     logger: new Rally.technicalservices.Logger(),
     items: [
-        {xtype:'container',itemId:'selection_box', layout: {type: 'hbox'}, padding: 10},
+        {xtype:'container',itemId:'selection_box',layout: {type: 'hbox'}},
         {xtype:'container',itemId:'display_box'},
         {xtype:'tsinfolink'}
     ],
     
-    chartTitle: 'Historical Blocker Status',
+    chartTitle: 'Blockers as a percentage of Work Items',
     pickerOptions: [
-                    {name: 'Last Month', value: -1},
-                    {name: 'Last 2 Months', value: -2},
-                    {name: 'Last 3 Months', value: -3},
-                    {name: 'Last 6 Months', value: -6},
-                    {name: 'Last 12 Months', value: -12}
-                ],
+        {name: 'Last Month', value: -1},
+        {name: 'Last 2 Months', value: -2},
+        {name: 'Last 3 Months', value: -3},
+        {name: 'Last 6 Months', value: -6},
+        {name: 'Last 12 Months', value: -12}
+    ],
     defaultPickerOption: 'Last 3 Months',
     launch: function() {
         this._initialize();
-        
     },
     _initialize: function(){
-                    var store = Ext.create('Ext.data.Store',{
-                        fields: ['name','value'],
-                        data: this.pickerOptions
-                    });
-                    
-                    var cb = this.down('#selection_box').add({
-                        xtype: 'combobox',
-                        store: store,
-                        queryMode: 'local',
-                        fieldLabel: 'Show data from',
-                        labelAlign: 'right',
-                        displayField: 'name',
-                        valueField: 'value',
-                        value: -3,
-                        listeners: {
-                            scope: this,
-                            select: this._fetchData  
-                        }
-                    });
-                    
-                    this.down('#selection_box').add({
-                        xtype: 'rallybutton',
-                        text: 'Export',
-                        itemId: 'btn-export',
-                        margin: '0 0 0 10',
-                        scope: this, 
-                        handler: this._export,
-                        disabled: true
-                    });
-
-                    this._fetchData(cb);
-    },    
-    _export: function(){
-        this.logger.log('_export');
+        var store = Ext.create('Ext.data.Store',{
+            fields: ['name','value'],
+            data: this.pickerOptions
+        });
         
-    },
-    _maskWindow: function(mask){
-        this.down('#btn-export').setDisabled(mask);
-        this.setLoading(mask);
-    },
-    _fetchData: function(cb){
-
-        this._maskWindow(true);
-        var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
-        var project = this.getContext().getProject().ObjectID;  
-        
-        this.logger.log('_fetchData', start_date, project);
-        Ext.create('Rally.technicalservices.BlockedArtifact.Store',{
-            startDate: start_date,
-            project: project,
+        var cb = this.down('#selection_box').add({
+            xtype: 'combobox',
+            store: store,
+            queryMode: 'local',
+            fieldLabel: 'Show data from',
+            labelAlign: 'right',
+            displayField: 'name',
+            valueField: 'value',
+            value: -3,
             listeners: {
                 scope: this,
-                artifactsloaded: function(blockedArtifacts,success){
-                    this.logger.log('artifactsLoaded', blockedArtifacts, success);
-                    this._buildChart(blockedArtifacts,start_date);
-                    this._maskWindow(false);
-                }
+                select: this._buildChart  
             }
         });
+        this._buildChart(cb);
     },
-    _buildChartNew: function(cb){
+    
+    _buildChart: function(cb){
+        var project = this.getContext().getProject().ObjectID;  
+        var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
+        this.logger.log('_buildChart', project, start_date);
         
-        var start_date = cb.getValue(); 
-        var project = this.getContext().getProject().ObjectID; 
-        var types = ['HierarchicalRequirement','Defect','Task'];
-        var dateFormat = "F";
-        var dateInterval = "month";
-
-        this.logger.log('_buildChart', start_date, project);
-
-        this.down('#display_box').removeAll(); 
+        this.down('#display_box').removeAll();
         
         this.down('#display_box').add({
             xtype: 'rallychart',
-            loadMask: false,
-            storeConfig: {
-                hydrate: ['ScheduleState','State','_TypeHierarchy'],
-                fetch: ['Blocked','BlockedReason','Blocker','ScheduleState','State','_TypeHierarchy'],
-                compress: true, 
-                find: {
-                $or: [
-                         {"BlockedReason": {$exists: true}},
-                         {"_PreviousValues.BlockedReason": {$exists: true}}],
-                "_ValidFrom": {$gte: Rally.util.DateTime.toIsoString(start_date)},
-                "_TypeHierarchy": {$in: types},
-                "_ProjectHierarchy": {$in: [project]}
-                }
-            },
-            calculatorType: 'Rally.technicalservices.calculator.UniqueArtifactCalculator',
+            calculatorType:  'Rally.technicalservices.calculator.StateTouchCalculator',
             calculatorConfig: {
-                granularity: "month",
-                dateFormat: "F"
+                startDate: start_date,
+                endDate: new Date()
             },
-//            chartData: {
-//                series: series,
-//                categories: categories
-//            }, 
+            storeConfig: {
+                fetch: ['Blocked','BlockedReason'],
+                find: {$and: [{"ScheduleState":"In-Progress"}, {'_ProjectHierarchy': project},
+                      {$or: [{
+                          "_ValidFrom": {$gt: Rally.util.DateTime.toIsoString(start_date)}
+                      },{
+                          "__At": Rally.util.DateTime.toIsoString(start_date)
+                      }]
+                      }]
+                } 
+            },
             chartConfig: {
                     chart: {
                         type: 'column'
@@ -1042,59 +991,15 @@ Ext.define('CustomApp', {
                     },
                     yAxis: {
                         min: 0,
-                        title: {
-                            text: 'Blockers'
+                        title: {text: ''},
+                        max: 100,
+                        labels: {
+                            format: '{value}%'
                         }
-                    }
-             }
-        });
-    },   
-    _buildChart: function(artifacts,startDate){
-        this.logger.log('_buildChart artifacts', artifacts);
-
-        this.down('#display_box').removeAll(); 
-        
-        var dateFormat = "F";
-        var dateInterval = "month";
-        
-//        var categories = Rally.technicalservices.BlockedToolbox.getDateBucketsForArtifacts(artifacts, ["blockedDate","unblockedDate"], dateInterval, dateFormat);
-        
-        var categories = Rally.technicalservices.BlockedToolbox.getDateBuckets(startDate, new Date(), dateInterval);
-        categories = Rally.technicalservices.BlockedToolbox.formatCategories(categories, dateFormat);
-        var new_blockers = Rally.technicalservices.BlockedToolbox.bucketDataByDate(artifacts,"blockedDate",dateInterval,dateFormat,categories);
-        var resolved_blockers = Rally.technicalservices.BlockedToolbox.bucketDataByDate(artifacts,"unblockedDate",dateInterval,dateFormat,categories);
-        
-        this.logger.log('_buildChart blocker data (new, resolved)', new_blockers, resolved_blockers);
- 
-        var series = [];
-        var nb_data = [], rb_data = []; 
-        Ext.each(categories, function(category){
-            nb_data.push(new_blockers[category]);
-            rb_data.push(resolved_blockers[category]);
-        },this);
-        series.push({name: "New Blockers", data: nb_data});
-        series.push({name: "Resolved Blockers", data: rb_data});
-        
-        this.logger.log('_buildChart', 'categories',categories,'series', series);
-        
-        this.down('#display_box').add({
-            xtype: 'rallychart',
-            loadMask: false,
-            chartData: {
-                series: series,
-                categories: categories
-            }, 
-            chartConfig: {
-                    chart: {
-                        type: 'column'
                     },
-                    title: {
-                        text: this.chartTitle
-                    },
-                    yAxis: {
-                        min: 0,
-                        title: {
-                            text: 'Blockers'
+                    plotOptions: {
+                        column: {
+                            stacking: "normal"
                         }
                     }
             }
@@ -1103,7 +1008,7 @@ Ext.define('CustomApp', {
 });
             
                Rally.launchApp('CustomApp', {
-                   name: 'Blocker Arrival Kill'
+                   name: 'Blocker Percentage of WorkItems'
                });
         });
     </script>

@@ -3,10 +3,10 @@
 <head>
     <title>Historical Blocker Reasons</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Jan 08 2015 13:55:46 GMT-0700 (MST) -->
+    <!--  Build Date: Tue Jan 13 2015 10:22:35 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Jan 08 2015 13:55:46 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Tue Jan 13 2015 10:22:35 GMT-0700 (MST)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -141,17 +141,18 @@ Ext.define('Rally.technicalservices.Logger',{
     Ext.define("Rally.technicalservices.BlockedArtifact.Store", {
         extend : 'Ext.util.Observable',
         config: {
-            startDate: Rally.util.DateTime.add(new Date(),"month",-3),
+            startDate: null,
             endDate: new Date(),
-            project: 13292412574, //null,
+            project: null,
+            types: ['HierarchicalRequirement','Defect','Task'],
+            hydrate: ['ScheduleState','State','_TypeHierarchy'],
+            fetch: ['Blocked','BlockedReason','Blocker','ScheduleState','State','_TypeHierarchy'],
+            compress: true, 
+            find: {$or: [
+               {"BlockedReason": {$exists: true}},
+               {"_PreviousValues.BlockedReason": {$exists: true}}
+            ]}
         },
-        types: ['HierarchicalRequirement','Defect','Task'],
-        hydrate: ['ScheduleState','State','_TypeHierarchy'],
-        fetch: ['Blocked','BlockedReason','Blocker','ScheduleState','State','_TypeHierarchy'],
-        find: {$or: [
-           {"BlockedReason": {$exists: true}},
-           {"_PreviousValues.BlockedReason": {$exists: true}}
-        ]},
         constructor: function(config){
             this.addEvents('artifactsloaded');       
             this.initConfig(config);
@@ -160,6 +161,8 @@ Ext.define('Rally.technicalservices.Logger',{
         },
         loadArtifacts: function(){
             var me = this; 
+            this.find['_ValidFrom'] = {$gte: this.startDate};  
+            
             Ext.create('Rally.data.lookback.SnapshotStore', {
                 autoLoad: true,
                 listeners: {
@@ -183,7 +186,7 @@ Ext.define('Rally.technicalservices.Logger',{
                         value: [this.project]
                     }
                 ],
-                compress: true 
+                compress: this.compress 
             });
         },
         
@@ -211,7 +214,7 @@ Ext.define('Rally.technicalservices.Logger',{
         blockedDateState: null,
         unblockedDateState: null, 
         blockedReason: null,
-        blocker: 0, 
+        blocker: 0,
         
         constructor: function(snapshot){
             this.objectID = snapshot.get('ObjectID');
@@ -234,6 +237,15 @@ Ext.define('Rally.technicalservices.Logger',{
                     this.unblockedDate = snap_date;  
                     this.unblockedDateState = state;
             }            
+        },
+        getDaysToResolution: function(){
+            console.log('daysToResolution',this.blockedReason, this.blockedDate, this.unblockedDate);
+            if (this.blockedReason && this.blockedDate && this.unblockedDate){
+                var blocked_date = Rally.util.DateTime.fromIsoString(this.blockedDate);
+                var unblocked_date = Rally.util.DateTime.fromIsoString(this.unblockedDate);
+                return Rally.util.DateTime.getDifference(unblocked_date, blocked_date, "day");
+            }
+            return null; 
         }
     });
 Ext.define('Rally.technicalservices.BlockedToolbox',{
@@ -270,6 +282,42 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
         
         return buckets;  
     },
+    getDateBuckets: function(startDate, endDate, granularity){
+        console.log('_getDateBuckets',startDate,endDate,granularity);
+        var start_year = startDate.getFullYear();
+        var start_month = startDate.getMonth();
+        var start_day = startDate.getDate();  
+        if (granularity == "month"){
+            start_day = 1; 
+        }
+        
+        var end_year = endDate.getFullYear();
+        var end_month = endDate.getMonth();
+        var end_day = endDate.getDate() + 1; 
+        if (granularity == "month"){
+            //months are zero-based and 0 day returns the last day of the previous month
+            end_day = new Date(end_year, end_month+1,0).getDate();
+        }
+        console.log(end_year,end_month,end_day);
+        var bucketStartDate = new Date(start_year,start_month,start_day,0,0,0,0);
+        var bucketEndDate = new Date(end_year,end_month,end_day,0,0,0,0);
+        var date = bucketStartDate;
+        
+        var buckets = []; 
+        console.log(bucketEndDate, bucketStartDate);
+        while (date<bucketEndDate && bucketStartDate < bucketEndDate){
+            buckets.push(date);
+            date = Rally.util.DateTime.add(date,granularity,1);
+        }
+        return buckets;  
+    },
+    formatCategories: function(buckets, dateFormat){
+        var categories = [];
+        Ext.each(buckets, function(bucket){
+            categories.push(Rally.util.DateTime.format(bucket,dateFormat));
+        });
+        return categories; 
+    },
     getDateBucketsForArtifacts: function(artifacts, artifactProperties, dateInterval, dateFormat){
         var earliest_date = new Date();
         var latest_date = Rally.util.DateTime.add(earliest_date,"year",-20);
@@ -299,20 +347,621 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
             date = Rally.util.DateTime.add(date,dateInterval,1);
         }
         return buckets;
+    },
+    getStatistics: function(artifacts){
+        //Mean, Min, Max, Totals
+        var reasons = this.getUniquePropertyValues(artifacts,"blockedReason");
+        var daysToResolution = {};  
+        Ext.each(reasons, function(reason){
+            daysToResolution[reason] = [];
+        });
+        
+        Ext.Object.each(artifacts, function(key,artifact){
+            if (artifact.blockedReason && artifact.unblockedDate){
+                daysToResolution[artifact.blockedReason].push(artifact.getDaysToResolution());
+            }
+        },this);
+        
+        var data = [];
+        var total = 0;
+        Ext.Object.each(daysToResolution, function(key,val){
+            total += val.length;
+            data.push({reason: key, mean: Ext.Array.mean(val), min: Ext.Array.min(val), max: Ext.Array.max(val), total: val.length});
+        });
+        
+        var all = _.flatten(_.values(daysToResolution));
+        data.push({reason: 'All', mean: Ext.Array.mean(all), min: Ext.Array.min(all), max: Ext.Array.max(all), total: total});
+        return data;
+    },
+    getUniquePropertyValues: function(artifacts, property, transformFn){
+        
+        var unique_values = [];  
+        console.log(transformFn);
+        if (transformFn == undefined){
+            transformFn = function(val){return val;}
+        }
+        console.log('fn',transformFn);
+        Ext.Object.each(artifacts, function(key,artifact){
+            console.log(artifact, artifact[property]);
+            if (artifact[property]){
+                var val = transformFn(artifact[property]);
+                console.log('val',val,Ext.Array.contains(unique_values, val));
+                if (!Ext.Array.contains(unique_values, val)){
+                    unique_values.push(val);
+                }
+            }
+        });
+        return unique_values.sort(); 
     }
 });
+    Ext.define('Rally.technicalservices.calculator.UniqueArtifactCalculator', {
+        extend: 'Rally.data.lookback.calculator.BaseCalculator',
+        logger: new Rally.technicalservices.Logger(),
+
+        config: {
+            startDate: null,
+            endDate: new Date(),
+            
+            /**
+             * Date format for the categories, if they are dates.  Valid formats are found in the Ext.Date object 
+             */
+            granularity: "month",
+            categoryDateFormat: null, 
+        },
+
+        /**
+         * Calculate extra chart fields that are derived based on the data retrieved by the store. This is passed
+         * to the Lumenize {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the
+         * configuration. For example, if you want to calculate the number of completed stories, you would simply return
+         * if the story is in a completed schedule state or not:
+         *   return [{
+         *       "as": "CompletedStoryCount",
+         *       "f": function(snapshot) {
+         *           var ss = snapshot.ScheduleState;
+         *           if (ss === "Accepted" || ss === "Released") {
+         *               return 1;
+         *           }
+         *           else {
+         *               return 0;
+         *           }
+         *       }
+         *   }];
+         *
+         * You can use these derived fields as part of the calculator metrics calculation.
+         *
+         * Object properties:
+         *
+         *   - The `as` property is the name the field is saved as for future reference
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `snapshot` as
+         *   an argument
+         *
+         * @return {Array} a list of derived fields objects
+         */
+        getDerivedFieldsOnInput: function () {
+            return [];
+        },
+
+        /**
+         * Calculate the metrics that are displayed on the chart from the data retrieved by the store. This is passed
+         * to the Lumenize {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the
+         * configuration. Metrics calculations can use fields that are derived using the #getDerivedFieldsOnInput
+         * function. For example, if I derived a CompletedStoryCount field, I can display that field as a bar chart by
+         * specifying:
+         *   return [{
+         *      "field": "CompletedStoryCount",
+         *      "as": "Completed Stories",
+         *      "f": "sum",
+         *      "display": "column"
+         *   }];
+         *
+         * The field is displayed in the chart as "Completed Stories" with each bar being a sum of that days completed
+         * stories.
+         *
+         * Object properties:
+         *
+         *   - The `field` property is the field name to use to calculate the metric. This can be a field from the data
+         *   or a derived field.
+         *   - The `as` property is the name displayed to the user in the chart
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `snapshot` as
+         *   an argument
+         *   - The `display` property is used by the chart to determine how to display the data on a chart. Can be any
+         *   Highcharts specific type, e.g., "line" or "column"
+         *
+         * @return {Array} a list of metric objects
+         */
+        getMetrics: function () {
+            return [];
+        },
+
+        /**
+         * Calculate summary metrics based on the data retrieved from the store. This is passed to the Lumenize
+         * {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the configuration.
+         * Each summary metric also has access to any previously defined metrics or derived fields. This function is
+         * useful to generate data that you do not necessarily want to render on the chart, but would like to use to get
+         * more derived fields after the main chart metrics are defined. For example, if you wanted the max numbers for
+         * different fields, you would specify:
+         *      return [
+         *          { "field": "TaskUnitScope", "f": "max" },
+         *          { "field": "TaskUnitBurnDown", "f": "max" },
+         *      ];
+         *
+         * The fields would then be available to the objects in #getDerivedFieldsAfterSummary. Note that the fields in
+         * this case will need to be referenced by `TaskUnitScope_max` due to the use of the built-in `max` function. If
+         * you wish to specify your own function, you must use the `as` property in order to reference the field in the
+         * future. For example,
+         *      return [{
+         *          "as": "TaskUnitBurnDown_max_index",
+         *          "f": function(seriesData, metrics) {
+         *              var i, length = seriesData.length;
+         *              for(i = 0; i < length; i++) {
+         *                  var data = seriesData[i];
+         *                  if(data.TaskUnitBurnDown == metrics.TaskUnitBurnDown_max) {
+         *                      return i;
+         *                  }
+         *              }
+         *          }
+         *      }];
+         *
+         * Object properties:
+         *
+         *   - The `field` property is the name of the field to use to calculate the new summary metric. This field
+         *   can be from the data or from a previously derived field.
+         *   - The `as` property is only used when you supply a custom function to calculate the summary metric. It is
+         *   the name for future reference of the field.
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `seriesData`
+         *   and `metrics` as arguments. This is used in conjunction with the `as` property.
+         *
+         * @return {Array}
+         */
+        getSummaryMetricsConfig: function () {
+            return [];
+        },
+
+        /**
+         * Calculate extra chart fields to display on the chart using the fields defined in by the summary metrics
+         * configuration. This is passed to the {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator} as
+         * part of the configuration. This function is useful when you want to derive more fields to display on your
+         * chart. For example, if you wanted to calculate an ideal line for a burn chart using the `TaskUnitScope_max`
+         * field, you would specify:
+         *      return [{
+         *          "as": "Ideal",
+         *          "f": function(snapshot, index, metrics, seriesData) {
+         *              var max = metrics.TaskUnitScope_max,
+         *                  increments = seriesData.length - 1,
+         *                  incrementAmount = max / increments;
+         *
+         *              return Math.floor(100 * (max - index * incrementAmount)) / 100;
+         *          },
+         *          "display": "line"
+         *      }];
+         *
+         * This field would be displayed in the chart as an ideal line for the given data.
+         *
+         * Object properties:
+         *
+         *   - The `as` property is the name displayed to the user in the chart
+         *   - The `f` property is a custom function that takes a snapshot, index, chart metrics, and the series data as
+         *   arguments
+         *   - The `display` property is used by the chart to determine how to display the data on a chart. Can be any
+         *   Highcharts specific type, e.g., "line" or "column"
+         *
+         * @return {Array}
+         */
+        getDerivedFieldsAfterSummary: function () {
+            return [];
+        },
+        runCalculation: function (snapshots) {
+            this.logger.log("runCalculations snapshots",snapshots.length, snapshots);
+            
+            var snaps_by_oid = this._aggregateSnapshots(snapshots);
+            var categories = this._getDateBuckets(this.startDate, this.endDate, this.granularity); 
+            
+            var series = null;
+
+            return {categories: categories, series: series};
+        },
+        _getDateBuckets: function(startDate, endDate, granularity){
+            console.log('_getDateBuckets',startDate,endDate,granularity);
+            var start_year = startDate.getFullYear();
+            var start_month = startDate.getMonth();
+            var start_day = startDate.getDate();  
+            if (granularity == "month"){
+                start_day = 1; 
+            }
+            
+            var end_year = endDate.getFullYear();
+            var end_month = endDate.getMonth();
+            var end_day = endDate.getDate() + 1; 
+            if (granularity == "month"){
+                //months are zero-based and 0 day returns the last day of the previous month
+                end_day = new Date(end_year, end_month+1,0).getDate();
+            }
+            console.log(end_year,end_month,end_day);
+            var bucketStartDate = new Date(start_year,start_month,start_day,0,0,0,0);
+            var bucketEndDate = new Date(end_year,end_month,end_day,0,0,0,0);
+            var date = bucketStartDate;
+            
+            var buckets = []; 
+            console.log(bucketEndDate, bucketStartDate);
+            while (date<bucketEndDate && bucketStartDate < bucketEndDate){
+                buckets.push(date);
+                date = Rally.util.DateTime.add(date,granularity,1);
+            }
+            return buckets;  
+        },
+        _formatCategories: function(buckets, dateFormat){
+            var categories = [];
+            Ext.each(buckets, function(bucket){
+                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
+            });
+            return categories; 
+        },
+        _aggregateSnapshots: function(snapshots){
+            //Return a hash of objects (key=ObjectID) with all snapshots for the object
+            var snaps_by_oid = {};
+            Ext.each(snapshots, function(snap){
+                var oid = snap.ObjectID;
+                if (snaps_by_oid[oid] == undefined){
+                    snaps_by_oid[oid] = [];
+                }
+                snaps_by_oid[oid].push(snap);
+                
+            });
+            return snaps_by_oid;
+        }
+    });
+Ext.override(Rally.ui.chart.Chart,{
+    _loadStore: function (storeConfig, storeRank) {
+
+        var self = this;
+
+        Ext.merge(storeConfig, {
+            exceptionHandler: function (proxy, response, operation) {
+                if (response.status !== 200) {
+                    self.queryValid = false;
+                }
+                if (response.status === 409) {
+                    self.workspaceHalted = true;
+                } else if (response.status === 503) {
+                    self.serviceUnavailable = true;
+                }
+            }
+        });
+
+        storeConfig.limit = storeConfig.limit || Infinity;
+
+        var store = Ext.create(this.storeType, storeConfig);
+        store.rank = storeRank;
+
+        store.on('load', this._storeLoadHandler, this);
+        store.load({params: { removeUnauthorizedSnapshots: true } });
+    }
+});
+
+    Ext.define('Rally.technicalservices.calculator.StateTouchCalculator', {
+        extend: 'Rally.data.lookback.calculator.BaseCalculator',
+
+        config: {
+            startDate: null,
+            endDate: null
+        },
+
+        /**
+         * Calculate extra chart fields that are derived based on the data retrieved by the store. This is passed
+         * to the Lumenize {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the
+         * configuration. For example, if you want to calculate the number of completed stories, you would simply return
+         * if the story is in a completed schedule state or not:
+         *   return [{
+         *       "as": "CompletedStoryCount",
+         *       "f": function(snapshot) {
+         *           var ss = snapshot.ScheduleState;
+         *           if (ss === "Accepted" || ss === "Released") {
+         *               return 1;
+         *           }
+         *           else {
+         *               return 0;
+         *           }
+         *       }
+         *   }];
+         *
+         * You can use these derived fields as part of the calculator metrics calculation.
+         *
+         * Object properties:
+         *
+         *   - The `as` property is the name the field is saved as for future reference
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `snapshot` as
+         *   an argument
+         *
+         * @return {Array} a list of derived fields objects
+         */
+        getDerivedFieldsOnInput: function () {
+            return [];
+        },
+
+        /**
+         * Calculate the metrics that are displayed on the chart from the data retrieved by the store. This is passed
+         * to the Lumenize {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the
+         * configuration. Metrics calculations can use fields that are derived using the #getDerivedFieldsOnInput
+         * function. For example, if I derived a CompletedStoryCount field, I can display that field as a bar chart by
+         * specifying:
+         *   return [{
+         *      "field": "CompletedStoryCount",
+         *      "as": "Completed Stories",
+         *      "f": "sum",
+         *      "display": "column"
+         *   }];
+         *
+         * The field is displayed in the chart as "Completed Stories" with each bar being a sum of that days completed
+         * stories.
+         *
+         * Object properties:
+         *
+         *   - The `field` property is the field name to use to calculate the metric. This can be a field from the data
+         *   or a derived field.
+         *   - The `as` property is the name displayed to the user in the chart
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `snapshot` as
+         *   an argument
+         *   - The `display` property is used by the chart to determine how to display the data on a chart. Can be any
+         *   Highcharts specific type, e.g., "line" or "column"
+         *
+         * @return {Array} a list of metric objects
+         */
+        getMetrics: function () {
+            return [];
+        },
+
+        /**
+         * Calculate summary metrics based on the data retrieved from the store. This is passed to the Lumenize
+         * {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the configuration.
+         * Each summary metric also has access to any previously defined metrics or derived fields. This function is
+         * useful to generate data that you do not necessarily want to render on the chart, but would like to use to get
+         * more derived fields after the main chart metrics are defined. For example, if you wanted the max numbers for
+         * different fields, you would specify:
+         *      return [
+         *          { "field": "TaskUnitScope", "f": "max" },
+         *          { "field": "TaskUnitBurnDown", "f": "max" },
+         *      ];
+         *
+         * The fields would then be available to the objects in #getDerivedFieldsAfterSummary. Note that the fields in
+         * this case will need to be referenced by `TaskUnitScope_max` due to the use of the built-in `max` function. If
+         * you wish to specify your own function, you must use the `as` property in order to reference the field in the
+         * future. For example,
+         *      return [{
+         *          "as": "TaskUnitBurnDown_max_index",
+         *          "f": function(seriesData, metrics) {
+         *              var i, length = seriesData.length;
+         *              for(i = 0; i < length; i++) {
+         *                  var data = seriesData[i];
+         *                  if(data.TaskUnitBurnDown == metrics.TaskUnitBurnDown_max) {
+         *                      return i;
+         *                  }
+         *              }
+         *          }
+         *      }];
+         *
+         * Object properties:
+         *
+         *   - The `field` property is the name of the field to use to calculate the new summary metric. This field
+         *   can be from the data or from a previously derived field.
+         *   - The `as` property is only used when you supply a custom function to calculate the summary metric. It is
+         *   the name for future reference of the field.
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `seriesData`
+         *   and `metrics` as arguments. This is used in conjunction with the `as` property.
+         *
+         * @return {Array}
+         */
+        getSummaryMetricsConfig: function () {
+            return [];
+        },
+
+        /**
+         * Calculate extra chart fields to display on the chart using the fields defined in by the summary metrics
+         * configuration. This is passed to the {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator} as
+         * part of the configuration. This function is useful when you want to derive more fields to display on your
+         * chart. For example, if you wanted to calculate an ideal line for a burn chart using the `TaskUnitScope_max`
+         * field, you would specify:
+         *      return [{
+         *          "as": "Ideal",
+         *          "f": function(snapshot, index, metrics, seriesData) {
+         *              var max = metrics.TaskUnitScope_max,
+         *                  increments = seriesData.length - 1,
+         *                  incrementAmount = max / increments;
+         *
+         *              return Math.floor(100 * (max - index * incrementAmount)) / 100;
+         *          },
+         *          "display": "line"
+         *      }];
+         *
+         * This field would be displayed in the chart as an ideal line for the given data.
+         *
+         * Object properties:
+         *
+         *   - The `as` property is the name displayed to the user in the chart
+         *   - The `f` property is a custom function that takes a snapshot, index, chart metrics, and the series data as
+         *   arguments
+         *   - The `display` property is used by the chart to determine how to display the data on a chart. Can be any
+         *   Highcharts specific type, e.g., "line" or "column"
+         *
+         * @return {Array}
+         */
+        getDerivedFieldsAfterSummary: function () {
+            return [];
+        },
+
+        /**
+         * @inheritdoc
+         */
+        runCalculation: function (snapshots) {
+            console.log("runCalculations",snapshots.length, snapshots);
+            
+            var snaps_by_oid = this._aggregateSnapshots(snapshots);
+            
+            var granularity = "month";
+            var dateFormat = "F";
+            var date_buckets = this._getDateBuckets(this.startDate, this.endDate, granularity);
+            var series = this._getSeries(snaps_by_oid,date_buckets,granularity);
+            var categories = this._formatCategories(date_buckets, dateFormat);  
+            console.log({categories: categories, series: series});
+            return {categories: categories, series: series};
+        },
+        _getDateBuckets: function(startDate, endDate, granularity){
+            console.log('_getDateBuckets',startDate,endDate,granularity);
+            var start_year = startDate.getFullYear();
+            var start_month = startDate.getMonth();
+            var start_day = startDate.getDate();  
+            if (granularity == "month"){
+                start_day = 1; 
+            }
+            
+            var end_year = endDate.getFullYear();
+            var end_month = endDate.getMonth();
+            var end_day = endDate.getDate() + 1; 
+            if (granularity == "month"){
+                //months are zero-based and 0 day returns the last day of the previous month
+                end_day = new Date(end_year, end_month+1,0).getDate();
+            }
+            console.log(end_year,end_month,end_day);
+            var bucketStartDate = new Date(start_year,start_month,start_day,0,0,0,0);
+            var bucketEndDate = new Date(end_year,end_month,end_day,0,0,0,0);
+            var date = bucketStartDate;
+            
+            var buckets = []; 
+            console.log(bucketEndDate, bucketStartDate);
+            while (date<bucketEndDate && bucketStartDate < bucketEndDate){
+                buckets.push(date);
+                date = Rally.util.DateTime.add(date,granularity,1);
+            }
+            return buckets;  
+            
+        },
+        _getSeries: function(snaps_by_oid, buckets, granularity){
+            
+            var total_counter = _.range(buckets.length).map(function () { return 0 }),
+                blocked_counter =_.range(buckets.length).map(function () { return 0 });
+
+            Ext.Object.each(snaps_by_oid, function(oid, snaps){
+                var oid_end_date = null, oid_start_date = null,
+                    oid_blocked_end_date = null, oid_blocked_start_date = null,
+                    oid_blocked = false; 
+                
+                Ext.each(snaps, function(snap){
+                    
+                    var snap_from_date = Rally.util.DateTime.fromIsoString(snap._ValidFrom);
+                    if (oid_start_date == null ||  snap_from_date < oid_start_date){
+                        oid_start_date = snap_from_date;
+                    }
+                    var snap_to_date = Rally.util.DateTime.fromIsoString(snap._ValidTo);
+                    if (oid_end_date == null || oid_end_date < snap_to_date){
+                        oid_end_date = snap_to_date;
+                    }
+                    
+                    if (snap.BlockedReason && snap.Blocked){
+                        oid_blocked = true; 
+                        if (oid_blocked_start_date == null || oid_blocked_start_date > snap_from_date){
+                            oid_blocked_start_date = snap_from_date;
+                        }
+                        if (oid_blocked_end_date == null || oid_blocked_end_date < snap_to_date){
+                            oid_blocked_end_date = snap_to_date;  
+                        }
+                    }
+                    
+                });
+
+                for (var i=0; i<buckets.length; i++){
+                    if (oid_end_date >= buckets[i] && oid_start_date < Rally.util.DateTime.add(buckets[i],granularity,1)){
+                        total_counter[i]++;
+                    }
+                    if (oid_blocked){
+                        if (oid_blocked_start_date >= buckets[i] && oid_blocked_start_date < Rally.util.DateTime.add(buckets[i],granularity,1)){
+                            blocked_counter[i]++;
+                        }
+                    }
+                }
+            });
+            
+            var blocked_pct = _.range(buckets.length).map(function () { return 0 }),
+            not_blocked_pct = _.range(buckets.length).map(function () { return 0 });  
+            
+            for(var i=0; i< buckets.length; i++){
+                blocked_pct[i] = blocked_counter[i]/total_counter[i] * 100;
+                not_blocked_pct[i] = (total_counter[i] - blocked_counter[i])/total_counter[i] *100;  
+            }
+            
+            return [{name: '% Not Blocked', data: not_blocked_pct, stack: 1},
+                    {name: '% Blocked', data: blocked_pct, stack: 1}];
+        },
+
+        _formatCategories: function(buckets, dateFormat){
+            var categories = [];
+            Ext.each(buckets, function(bucket){
+                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
+            });
+            return categories; 
+        },
+        _aggregateSnapshots: function(snapshots){
+            //Return a hash of objects (key=ObjectID) with all snapshots for the object
+            var snaps_by_oid = {};
+            Ext.each(snapshots, function(snap){
+                var oid = snap.ObjectID;
+                if (snaps_by_oid[oid] == undefined){
+                    snaps_by_oid[oid] = [];
+                }
+                snaps_by_oid[oid].push(snap);
+                
+            });
+            return snaps_by_oid;
+        }
+    });
 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',
     logger: new Rally.technicalservices.Logger(),
     items: [
+        {xtype:'container',itemId:'selection_box'},
         {xtype:'container',itemId:'display_box'},
         {xtype:'tsinfolink'}
     ],
     chartTitle: 'Blocker Causes',
+    pickerOptions: [
+                    {name: 'Last Month', value: -1},
+                    {name: 'Last 2 Months', value: -2},
+                    {name: 'Last 3 Months', value: -3},
+                    {name: 'Last 6 Months', value: -6},
+                    {name: 'Last 12 Months', value: -12}
+                ],
+    defaultPickerOption: 'Last 3 Months',
     launch: function() {
-
+        this._initialize();
+    },
+    _initialize: function(){
+        var store = Ext.create('Ext.data.Store',{
+            fields: ['name','value'],
+            data: this.pickerOptions
+        });
+        
+        var cb = this.down('#selection_box').add({
+            xtype: 'combobox',
+            store: store,
+            queryMode: 'local',
+            fieldLabel: 'Show data from',
+            labelAlign: 'right',
+            displayField: 'name',
+            valueField: 'value',
+            value: -3,
+            listeners: {
+                scope: this,
+                select: this._fetchData  
+            }
+        });
+        this._fetchData(cb);
+    },    
+    _fetchData: function(cb){
+        var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
+        var project = this.getContext().getProject().ObjectID;  
+        
         Ext.create('Rally.technicalservices.BlockedArtifact.Store',{
+            startDate: start_date,
+            project: project,
             listeners: {
                 scope: this,
                 artifactsloaded: function(blockedArtifacts,success){
@@ -321,9 +970,10 @@ Ext.define('CustomApp', {
                 }
             }
         });
+        
     },
     _buildChart: function(artifacts){
-        
+        this.down('#display_box').removeAll();
         var counts = Rally.technicalservices.BlockedToolbox.getCountsByReason(artifacts);
         
         var series_data = []; 

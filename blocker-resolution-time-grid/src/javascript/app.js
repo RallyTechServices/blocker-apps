@@ -7,7 +7,6 @@ Ext.define('CustomApp', {
         {xtype:'container',itemId:'display_box'},
         {xtype:'tsinfolink'}
     ],
-    chartTitle: 'Blocker Causes',
     pickerOptions: [
                     {name: 'Last Month', value: -1},
                     {name: 'Last 2 Months', value: -2},
@@ -52,45 +51,31 @@ Ext.define('CustomApp', {
                 scope: this,
                 artifactsloaded: function(blockedArtifacts,success){
                     this.logger.log('artifactsLoaded', blockedArtifacts, success);
-                    this._buildChart(blockedArtifacts);
+                    this._buildGrid(blockedArtifacts);
                 }
             }
         });
         
     },
-    _buildChart: function(artifacts){
-        this.down('#display_box').removeAll();
-        var counts = Rally.technicalservices.BlockedToolbox.getCountsByReason(artifacts);
-        
-        var series_data = []; 
-        Ext.Object.each(counts, function(key,val){
-            series_data.push([key,val]);
-        },this);
-        var series = [{type: 'pie', name: this.chartTitle, data: series_data}];
-        
-        this.logger.log('_buildCharts', artifacts, series);
-        
-        this.down('#display_box').add({
-            xtype: 'rallychart',
-            chartData: {
-                series: series,
-            }, 
-            chartConfig: {
-                    chart: {
-                        type: 'pie'
-                    },
-                    title: {
-                        text: this.chartTitle
-                    },
-                    plotOptions: {
-                        pie: {
-                            dataLabels: {
-                                enabled: true,
-                                format: '<b>{point.name}</b><br/>{point.percentage:.0f}%'
-                            }
-                        }
-                    }
-                }
-            });
-    }
+   _buildGrid: function(blockedArtifacts){
+       
+       this.down('#display_box').removeAll();
+       
+       var data = Rally.technicalservices.BlockedToolbox.getStatistics(blockedArtifacts);
+       var store = Ext.create('Rally.data.custom.Store',{
+           data: data
+       });
+       
+       var columnCfgs = [];
+       Ext.each(_.keys(data[0]), function(key){
+           columnCfgs.push({text: key, dataIndex: key});
+       });
+       columnCfgs[0]['flex'] = 1;  
+       
+       this.down('#display_box').add({
+           xtype: 'rallygrid',
+           store: store,
+           columnCfgs: columnCfgs
+       });
+   }
 });

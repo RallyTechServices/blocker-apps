@@ -1,0 +1,7 @@
+{
+    "name": "Blocker Percentage of WorkItems",
+    "className": "CustomApp",
+    "server": "https://rally1.rallydev.com",
+    "sdk": "2.0rc3",
+    "apiKey": "_PUT_APIKEY_HERE_"
+}

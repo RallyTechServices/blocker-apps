@@ -1,17 +1,18 @@
     Ext.define("Rally.technicalservices.BlockedArtifact.Store", {
         extend : 'Ext.util.Observable',
         config: {
-            startDate: Rally.util.DateTime.add(new Date(),"month",-3),
+            startDate: null,
             endDate: new Date(),
-            project: 13292412574, //null,
+            project: null,
+            types: ['HierarchicalRequirement','Defect','Task'],
+            hydrate: ['ScheduleState','State','_TypeHierarchy'],
+            fetch: ['Blocked','BlockedReason','Blocker','ScheduleState','State','_TypeHierarchy'],
+            compress: true, 
+            find: {$or: [
+               {"BlockedReason": {$exists: true}},
+               {"_PreviousValues.BlockedReason": {$exists: true}}
+            ]}
         },
-        types: ['HierarchicalRequirement','Defect','Task'],
-        hydrate: ['ScheduleState','State','_TypeHierarchy'],
-        fetch: ['Blocked','BlockedReason','Blocker','ScheduleState','State','_TypeHierarchy'],
-        find: {$or: [
-           {"BlockedReason": {$exists: true}},
-           {"_PreviousValues.BlockedReason": {$exists: true}}
-        ]},
         constructor: function(config){
             this.addEvents('artifactsloaded');       
             this.initConfig(config);
@@ -20,6 +21,8 @@
         },
         loadArtifacts: function(){
             var me = this; 
+            this.find['_ValidFrom'] = {$gte: this.startDate};  
+            
             Ext.create('Rally.data.lookback.SnapshotStore', {
                 autoLoad: true,
                 listeners: {
@@ -43,7 +46,7 @@
                         value: [this.project]
                     }
                 ],
-                compress: true 
+                compress: this.compress 
             });
         },
         
