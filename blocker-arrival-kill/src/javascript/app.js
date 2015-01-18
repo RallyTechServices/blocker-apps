@@ -10,13 +10,13 @@ Ext.define('CustomApp', {
     
     chartTitle: 'Historical Blocker Status',
     pickerOptions: [
-                    {name: 'Last Month', value: -1},
-                    {name: 'Last 2 Months', value: -2},
-                    {name: 'Last 3 Months', value: -3},
-                    {name: 'Last 6 Months', value: -6},
-                    {name: 'Last 12 Months', value: -12}
+                    {name: 'Last Complete Month', value: -1},
+                    {name: 'Last 2 Complete Months', value: -2},
+                    {name: 'Last 3 Complete Months', value: -3},
+                    {name: 'Last 6 Complete Months', value: -6},
+                    {name: 'Last 12 Complete Months', value: -12}
                 ],
-    defaultPickerOption: 'Last 3 Months',
+    defaultPickerOption: 'Last 3 Complete Months',
     launch: function() {
         this._initialize();
         
@@ -38,28 +38,36 @@ Ext.define('CustomApp', {
                         value: -3,
                         listeners: {
                             scope: this,
-                            select: this._fetchData  
+                            select: this._buildChartNew  
                         }
                     });
                     
                     this.down('#selection_box').add({
                         xtype: 'rallybutton',
-                        text: 'Export',
-                        itemId: 'btn-export',
+                        text: 'Data...',
+                        itemId: 'btn-data',
                         margin: '0 0 0 10',
                         scope: this, 
-                        handler: this._export,
-                        disabled: true
+                        handler: this._viewData,
+                        //disabled: true
                     });
 
-                    this._fetchData(cb);
+                    this._buildChartNew(cb);
     },    
-    _export: function(){
-        this.logger.log('_export');
+    _viewData: function(){
+        this.logger.log('_viewData');
         
+        var data = this.down('#crt').calculator.getData();  
+        Ext.create('Rally.technicalservices.DataExportDialog', {
+            draggable: true,
+            modal: true,
+            autoShow: true,
+            title: 'Data Dialog 2',
+            data: data
+        });
     },
     _maskWindow: function(mask){
-        this.down('#btn-export').setDisabled(mask);
+        this.down('#btn-data').setDisabled(mask);
         this.setLoading(mask);
     },
     _fetchData: function(cb){
@@ -84,8 +92,9 @@ Ext.define('CustomApp', {
     },
     _buildChartNew: function(cb){
         
-        var start_date = cb.getValue(); 
+        var start_date = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(Rally.util.DateTime.add(new Date(), "month",cb.getValue()));
         var project = this.getContext().getProject().ObjectID; 
+
         var types = ['HierarchicalRequirement','Defect','Task'];
         var dateFormat = "F";
         var dateInterval = "month";
@@ -96,29 +105,31 @@ Ext.define('CustomApp', {
         
         this.down('#display_box').add({
             xtype: 'rallychart',
+            itemId: 'crt',
             loadMask: false,
             storeConfig: {
-                hydrate: ['ScheduleState','State','_TypeHierarchy'],
-                fetch: ['Blocked','BlockedReason','Blocker','ScheduleState','State','_TypeHierarchy'],
+                hydrate: ['_TypeHierarchy'],
+                fetch: ['Blocked','_PreviousValues.Blocked','BlockedReason','_PreviousValues.BlockedReason','_TypeHierarchy'],
                 compress: true, 
                 find: {
                 $or: [
-                         {"BlockedReason": {$exists: true}},
-                         {"_PreviousValues.BlockedReason": {$exists: true}}],
-                "_ValidFrom": {$gte: Rally.util.DateTime.toIsoString(start_date)},
+                      {"BlockedReason": {$exists: true}},
+                      {"_PreviousValues.BlockedReason": {$exists: true}},
+                      {"Blocked": true},
+                      {"_PreviousValues.Blocked": true}
+                ],
+                "_ValidFrom": {$gt: start_date},
                 "_TypeHierarchy": {$in: types},
                 "_ProjectHierarchy": {$in: [project]}
-                }
+                },
+                sort: {"_ValidFrom": 1} //sort ascending
             },
-            calculatorType: 'Rally.technicalservices.calculator.UniqueArtifactCalculator',
+            calculatorType: 'Rally.technicalservices.calculator.BlockedArrivalKill',
             calculatorConfig: {
                 granularity: "month",
-                dateFormat: "F"
+                dateFormat: "F",
+                startDate: start_date
             },
-//            chartData: {
-//                series: series,
-//                categories: categories
-//            }, 
             chartConfig: {
                     chart: {
                         type: 'column'

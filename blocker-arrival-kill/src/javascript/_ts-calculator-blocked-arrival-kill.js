@@ -1,14 +1,10 @@
-    Ext.define('Rally.technicalservices.calculator.UniqueArtifactCalculator', {
+    Ext.define('Rally.technicalservices.calculator.BlockedArrivalKill', {
         extend: 'Rally.data.lookback.calculator.BaseCalculator',
         logger: new Rally.technicalservices.Logger(),
 
         config: {
             startDate: null,
             endDate: new Date(),
-            
-            /**
-             * Date format for the categories, if they are dates.  Valid formats are found in the Ext.Date object 
-             */
             granularity: "month",
             categoryDateFormat: null, 
         },
@@ -160,10 +156,76 @@
             var snaps_by_oid = this._aggregateSnapshots(snapshots);
             var buckets = this._getDateBuckets(this.startDate, this.endDate, this.granularity); 
             
-            var series = null;
+            //Blocked during month, unblocked during month 
+            var series = this._getSeries(snaps_by_oid, buckets);
 
             var categories = this._formatCategories(buckets, this.dateFormat);  
+            console.log(series, categories);
             return {categories: categories, series: series};
+        },
+        _getSeries: function(snaps_by_oid, date_buckets){
+
+            var blocked_buckets = [];
+            var unblocked_buckets = [];
+            for (var i=0; i<date_buckets.length; i++){
+                blocked_buckets[i] = 0;
+                unblocked_buckets[i] = 0;
+            }
+            var data = [];
+            Ext.Object.each(snaps_by_oid, function(oid, snaps){
+                var last_blocked_time = null; 
+                var data_record = {ObjectId: oid, FormattedId: null, BlockedDate: null, UnblockedDate: null};
+                Ext.each(snaps, function(snap){
+                    var formatted_id = snap.FormattedID;  
+                    data_record['FormattedId']=formatted_id;
+                    var is_blocked = snap.Blocked;
+                    var was_blocked = is_blocked;  
+                    if (snap._PreviousValues && (snap._PreviousValues.Blocked != undefined)){
+                        was_blocked = snap._PreviousValues.Blocked;
+                    }
+                    
+                    var has_reason = false; 
+                    if (snap.BlockedReason && snap.BlockedReason.length >0){
+                        has_reason = true; 
+                    }
+                    var had_reason = has_reason;  
+                    if (snap._PreviousValues && (snap._PreviousValues.BlockedReason != undefined)){
+                        had_reason = false;  
+                        if (snap._PreviousValues.BlockedReason && snap._PreviousValues.BlockedReason.length > 0){
+                            had_reason = true; 
+                        };
+                    }
+                    var date = Rally.util.DateTime.fromIsoString(snap._ValidFrom);
+                    if (was_blocked && had_reason && (is_blocked == false)){
+                        for(var i=0; i< date_buckets.length; i++){
+                            if (date >= date_buckets[i] && date < Rally.util.DateTime.add(date_buckets[i],this.granularity,1)){
+                                unblocked_buckets[i]++; 
+                            }
+                        }
+                        data_record['UnblockedDate'] = date; 
+                        last_blocked_time = null;  
+                    } 
+                    
+                    if (is_blocked && (was_blocked == false)){
+                        last_blocked_time = date; 
+                    }
+
+                    if (is_blocked && has_reason && last_blocked_time){
+                        for(var i=0; i< date_buckets.length; i++){
+                            if (last_blocked_time >= date_buckets[i] && last_blocked_time < Rally.util.DateTime.add(date_buckets[i],this.granularity,1)){
+                                blocked_buckets[i]++; 
+                            }
+                        }
+                        data_record['BlockedDate']=last_blocked_time;
+                        last_blocked_time = null;  
+                    }
+                },this);
+                if (data_record.UnblockedDate != null || data_record.BlockedDate != null){
+                    data.push(data_record);
+                }
+            },this);
+            this.data = data;
+            return [{name:'Blocked', data: blocked_buckets},{name:'Unblocked', data: unblocked_buckets}];  
         },
         _getDateBuckets: function(startDate, endDate, granularity){
 
@@ -186,6 +248,7 @@
             Ext.each(buckets, function(bucket){
                 categories.push(Rally.util.DateTime.format(bucket,dateFormat));
             });
+            categories[categories.length-1] += "*"; 
             return categories; 
         },
         
@@ -204,5 +267,8 @@
                 
             });
             return snaps_by_oid;
+        },
+        getData: function(){
+            return this.data;  
         }
     });
