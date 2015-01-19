@@ -35,10 +35,11 @@ Ext.define('CustomApp', {
                         labelAlign: 'right',
                         displayField: 'name',
                         valueField: 'value',
+                        minWidth: 300,
                         value: -3,
                         listeners: {
                             scope: this,
-                            select: this._buildChartNew  
+                            select: this._buildChart  
                         }
                     });
                     
@@ -52,7 +53,7 @@ Ext.define('CustomApp', {
                         //disabled: true
                     });
 
-                    this._buildChartNew(cb);
+                    this._buildChart(cb);
     },    
     _viewData: function(){
         this.logger.log('_viewData');
@@ -70,27 +71,7 @@ Ext.define('CustomApp', {
         this.down('#btn-data').setDisabled(mask);
         this.setLoading(mask);
     },
-    _fetchData: function(cb){
-
-        this._maskWindow(true);
-        var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
-        var project = this.getContext().getProject().ObjectID;  
-        
-        this.logger.log('_fetchData', start_date, project);
-        Ext.create('Rally.technicalservices.BlockedArtifact.Store',{
-            startDate: start_date,
-            project: project,
-            listeners: {
-                scope: this,
-                artifactsloaded: function(blockedArtifacts,success){
-                    this.logger.log('artifactsLoaded', blockedArtifacts, success);
-                    this._buildChart(blockedArtifacts,start_date);
-                    this._maskWindow(false);
-                }
-            }
-        });
-    },
-    _buildChartNew: function(cb){
+    _buildChart: function(cb){
         
         var start_date = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(Rally.util.DateTime.add(new Date(), "month",cb.getValue()));
         var project = this.getContext().getProject().ObjectID; 
@@ -144,57 +125,6 @@ Ext.define('CustomApp', {
                         }
                     }
              }
-        });
-    },   
-    _buildChart: function(artifacts,startDate){
-        this.logger.log('_buildChart artifacts', artifacts);
-
-        this.down('#display_box').removeAll(); 
-        
-        var dateFormat = "F";
-        var dateInterval = "month";
-        
-//        var categories = Rally.technicalservices.BlockedToolbox.getDateBucketsForArtifacts(artifacts, ["blockedDate","unblockedDate"], dateInterval, dateFormat);
-        
-        var categories = Rally.technicalservices.BlockedToolbox.getDateBuckets(startDate, new Date(), dateInterval);
-        categories = Rally.technicalservices.BlockedToolbox.formatCategories(categories, dateFormat);
-        var new_blockers = Rally.technicalservices.BlockedToolbox.bucketDataByDate(artifacts,"blockedDate",dateInterval,dateFormat,categories);
-        var resolved_blockers = Rally.technicalservices.BlockedToolbox.bucketDataByDate(artifacts,"unblockedDate",dateInterval,dateFormat,categories);
-        
-        this.logger.log('_buildChart blocker data (new, resolved)', new_blockers, resolved_blockers);
- 
-        var series = [];
-        var nb_data = [], rb_data = []; 
-        Ext.each(categories, function(category){
-            nb_data.push(new_blockers[category]);
-            rb_data.push(resolved_blockers[category]);
-        },this);
-        series.push({name: "New Blockers", data: nb_data});
-        series.push({name: "Resolved Blockers", data: rb_data});
-        
-        this.logger.log('_buildChart', 'categories',categories,'series', series);
-        
-        this.down('#display_box').add({
-            xtype: 'rallychart',
-            loadMask: false,
-            chartData: {
-                series: series,
-                categories: categories
-            }, 
-            chartConfig: {
-                    chart: {
-                        type: 'column'
-                    },
-                    title: {
-                        text: this.chartTitle
-                    },
-                    yAxis: {
-                        min: 0,
-                        title: {
-                            text: 'Blockers'
-                        }
-                    }
-            }
         });
     }
 });

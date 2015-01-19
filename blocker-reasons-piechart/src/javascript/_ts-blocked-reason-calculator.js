@@ -1,16 +1,9 @@
-    Ext.define('Rally.technicalservices.calculator.UniqueArtifactCalculator', {
+    Ext.define('Rally.technicalservices.calculator.BlockedReason', {
         extend: 'Rally.data.lookback.calculator.BaseCalculator',
         logger: new Rally.technicalservices.Logger(),
 
         config: {
-            startDate: null,
-            endDate: new Date(),
-            
-            /**
-             * Date format for the categories, if they are dates.  Valid formats are found in the Ext.Date object 
-             */
-            granularity: "month",
-            categoryDateFormat: null, 
+            startDate: null
         },
 
         /**
@@ -157,52 +150,23 @@
         runCalculation: function (snapshots) {
             this.logger.log("runCalculations snapshots",snapshots.length, snapshots);
             
-            var snaps_by_oid = this._aggregateSnapshots(snapshots);
-            var buckets = this._getDateBuckets(this.startDate, this.endDate, this.granularity); 
+            var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOid(snapshots);
             
-            var series = null;
+            var series = this._getSeries(snaps_by_oid);
 
-            var categories = this._formatCategories(buckets, this.dateFormat);  
-            return {categories: categories, series: series};
+            return {categories: [], series: series};
         },
-        _getDateBuckets: function(startDate, endDate, granularity){
-
-            var bucketStartDate = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(startDate);
-            var bucketEndDate = Rally.technicalservices.Toolbox.getEndOfMonthAsDate(endDate);
-           
-            this.logger.log('_getDateBuckets',startDate,bucketStartDate,endDate,bucketEndDate,granularity);
+        _getSeries: function(snaps_by_oid, date_buckets){
             
-            var date = bucketStartDate;
-            
-            var buckets = []; 
-            while (date<bucketEndDate && bucketStartDate < bucketEndDate){
-                buckets.push(date);
-                date = Rally.util.DateTime.add(date,granularity,1);
-            }
-            return buckets;  
+            var count_data = Rally.technicalservices.BlockedToolbox.getCountsByReason(snaps_by_oid);
+            this.data = count_data.data;  
+            var series_data = []; 
+            Ext.Object.each(count_data.counts, function(key,val){
+                series_data.push([key,val]);
+            },this);
+            return [{type: 'pie', name: this.chartTitle, data: series_data}];
         },
-        _formatCategories: function(buckets, dateFormat){
-            var categories = [];
-            Ext.each(buckets, function(bucket){
-                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
-            });
-            return categories; 
-        },
-        
-        /**
-         * aggregateSnapsots:  returns a hash of objects (key = ObjID) with all snapshots for the object
-         */
-        _aggregateSnapshots: function(snapshots){
-            //Return a hash of objects (key=ObjectID) with all snapshots for the object
-            var snaps_by_oid = {};
-            Ext.each(snapshots, function(snap){
-                var oid = snap.ObjectID;
-                if (snaps_by_oid[oid] == undefined){
-                    snaps_by_oid[oid] = [];
-                }
-                snaps_by_oid[oid].push(snap);
-                
-            });
-            return snaps_by_oid;
+        getData: function(){
+            return this.data;  
         }
     });

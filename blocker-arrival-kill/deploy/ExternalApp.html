@@ -3,10 +3,10 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Sat Jan 17 2015 20:39:25 GMT-0700 (MST) -->
+    <!--  Build Date: Mon Jan 19 2015 12:56:10 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Sat Jan 17 2015 20:39:25 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Mon Jan 19 2015 12:56:10 GMT-0700 (MST)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -138,129 +138,25 @@ Ext.define('Rally.technicalservices.Logger',{
 
 });
 
-    Ext.define("Rally.technicalservices.BlockedArtifact.Store", {
-        extend : 'Ext.util.Observable',
-        config: {
-            startDate: null,
-            endDate: new Date(),
-            project: null,
-            types: ['HierarchicalRequirement','Defect','Task'],
-            hydrate: ['ScheduleState','State','_TypeHierarchy'],
-            fetch: ['Blocked','BlockedReason','Blocker','ScheduleState','State','_TypeHierarchy'],
-            compress: true, 
-            find: {$or: [
-               {"BlockedReason": {$exists: true}},
-               {"_PreviousValues.BlockedReason": {$exists: true}}
-            ]}
-        },
-        constructor: function(config){
-            this.addEvents('artifactsloaded');       
-            this.initConfig(config);
-            this.callParent(arguments);
-            this.loadArtifacts();
-        },
-        loadArtifacts: function(){
-            var me = this; 
-            this.find['_ValidFrom'] = {$gte: this.startDate};  
-            
-            Ext.create('Rally.data.lookback.SnapshotStore', {
-                autoLoad: true,
-                listeners: {
-                    load: function(store, data, success) {
-                        //process data
-                        var processed_data = me._processData(data);
-                        me.fireEvent('artifactsloaded', processed_data,success);
-                    }
-                },
-                fetch: this.fetch,
-                hydrate: this.hydrate,
-                find: this.find,
-                filters: [
-                    {
-                        property: '_TypeHierarchy',
-                        operator: 'in',
-                        value: this.types
-                    },{
-                        property: '_ProjectHierarchy',
-                        operator: 'in',
-                        value: [this.project]
-                    }
-                ],
-                compress: this.compress 
-            });
-        },
-        
-        _processData: function(data){
-            var stats = {};  
-            Ext.each(data, function(snap){
-                var obj_id = snap.get('ObjectID');
-                if (stats[obj_id] == undefined){
-                    stats[obj_id] = Ext.create('Rally.technicalservices.BlockedArtifact',snap);
-                } else {
-                    stats[obj_id].update(snap);
-                }
-            },this);
-            return stats;
-        }        
-    });
-
-    Ext.define("Rally.technicalservices.BlockedArtifact", {
-
-        objectID: 0,
-        artifactType: null,
-        blockedDate: null,
-        unblockedDate: null,
-        blockedReason: null,
-        blockedDateState: null,
-        unblockedDateState: null, 
-        blockedReason: null,
-        blocker: 0,
-        
-        constructor: function(snapshot){
-            this.objectID = snapshot.get('ObjectID');
-            this.artifactType = snapshot.get('_TypeHierarchy').splice(-1)[0];
-            this.update(snapshot);
-        },
-        update: function(snapshot){
-            
-            var blocked = snapshot.get('Blocked');
-            var snap_date = snapshot.get('_ValidFrom');
-            var state = snapshot.get('ScheduleState') || snapshot.get('State');
-            
-            if (blocked && ((this.blockedDate == null)||(this.blockedDate < snap_date))){
-                this.blockedDate = snap_date;  
-                this.blockedReason = snapshot.get('BlockedReason');
-                this.blocker = snapshot.get('Blocker');
-                this.blockedDateState = state;
-                
-            } else if (blocked == false && ((this.unblockedDate == null)||(this.unblockedDate > snap_date))) {
-                    this.unblockedDate = snap_date;  
-                    this.unblockedDateState = state;
-            }            
-        },
-        getDaysToResolution: function(){
-            console.log('daysToResolution',this.blockedReason, this.blockedDate, this.unblockedDate);
-            if (this.blockedReason && this.blockedDate && this.unblockedDate){
-                var blocked_date = Rally.util.DateTime.fromIsoString(this.blockedDate);
-                var unblocked_date = Rally.util.DateTime.fromIsoString(this.unblockedDate);
-                return Rally.util.DateTime.getDifference(unblocked_date, blocked_date, "day");
-            }
-            return null; 
-        }
-    });
 Ext.define('Rally.technicalservices.BlockedToolbox',{
     singleton: true,
-    getCountsByReason: function(artifacts){
+    getCountsByReason: function(snaps_by_oid){
         var counts = {};
-        Ext.Object.each(artifacts, function(key, artifact){
-            if (artifact.blockedReason){
-                if (counts[artifact.blockedReason] == undefined){
-                    counts[artifact.blockedReason] = 0; 
-                } 
-                counts[artifact.blockedReason]++; 
-            }
+        var data = [];  
+        Ext.Object.each(snaps_by_oid, function(oid, snaps){
+            var rec = {ObjectID: oid, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
+            Ext.each(snaps, function(snap){
+                if (snap.BlockedReason){
+                    if (counts[snap.BlockedReason] == undefined){
+                        counts[snap.BlockedReason] = 0; 
+                    } 
+                    rec.BlockedReason = snap.BlockedReason;
+                    counts[snap.BlockedReason]++; 
+                }
+            });
+            data.push(rec);
         },this);
-        return counts;  
+        return {counts: counts, data: data};  
     },
     bucketDataByDate: function(artifacts, artifactProperty, dateInterval, dateFormat, bucketedDateStrings){
         var buckets = {};
@@ -282,326 +178,136 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
         
         return buckets;  
     },
-    getDateBuckets: function(startDate, endDate, granularity){
-        console.log('_getDateBuckets',startDate,endDate,granularity);
-        var start_year = startDate.getFullYear();
-        var start_month = startDate.getMonth();
-        var start_day = startDate.getDate();  
-        if (granularity == "month"){
-            start_day = 1; 
-        }
+    aggregateBlockedTimelines: function(snaps_by_oid){
+        var export_data = [];  
+        var reason_data = {};  
+       
+        //Assumption is that these snaps are still sorted by _ValidFrom in ascending order for each oid
+        var block_action = {};  
         
-        var end_year = endDate.getFullYear();
-        var end_month = endDate.getMonth();
-        var end_day = endDate.getDate() + 1; 
-        if (granularity == "month"){
-            //months are zero-based and 0 day returns the last day of the previous month
-            end_day = new Date(end_year, end_month+1,0).getDate();
-        }
-        console.log(end_year,end_month,end_day);
-        var bucketStartDate = new Date(start_year,start_month,start_day,0,0,0,0);
-        var bucketEndDate = new Date(end_year,end_month,end_day,0,0,0,0);
-        var date = bucketStartDate;
-        
-        var buckets = []; 
-        console.log(bucketEndDate, bucketStartDate);
-        while (date<bucketEndDate && bucketStartDate < bucketEndDate){
-            buckets.push(date);
-            date = Rally.util.DateTime.add(date,granularity,1);
-        }
-        return buckets;  
-    },
-    formatCategories: function(buckets, dateFormat){
-        var categories = [];
-        Ext.each(buckets, function(bucket){
-            categories.push(Rally.util.DateTime.format(bucket,dateFormat));
-        });
-        return categories; 
-    },
-    getDateBucketsForArtifacts: function(artifacts, artifactProperties, dateInterval, dateFormat){
-        var earliest_date = new Date();
-        var latest_date = Rally.util.DateTime.add(earliest_date,"year",-20);
-        
-        Ext.Object.each(artifacts,function(key,artifact){
-            Ext.each(artifactProperties, function(prop){
-                if (artifact[prop]){
-                    var date = Rally.util.DateTime.fromIsoString(artifact[prop]);
-                    if (date < earliest_date){
-                        earliest_date = date; 
-                    }
-                    if (date > latest_date){
-                        latest_date = date;
-                    }                
+        Ext.Object.each(snaps_by_oid, function(oid, snaps){
+            var last_blocked_date = null;
+            var blocked_actions = [];  
+            var formatted_id = snaps[0].get('FormattedID');
+
+            Ext.each(snaps, function(snap){
+                var name = snap.get('Name');
+                var reason = snap.get('BlockedReason') || null;
+                var previous_reason = snap.get('_PreviousValues.BlockedReason') || null;
+                var blocked = snap.get('Blocked');
+                var was_blocked = snap.get('_PreviousValues.Blocked');
+                var date = Rally.util.DateTime.fromIsoString(snap.get('_ValidFrom'));
+
+                var rec = {FormattedID: formatted_id, BlockedDate: null, UnblockedDate: null, BlockedReason: null};
+                if (blocked === true && was_blocked === false){
+                    //Transition to blocked
+                    last_blocked_date = date;
+                    rec.BlockedDate = last_blocked_date;
+                    rec.BlockedReason = reason;  
+                    rec.Name = name; 
+                    blocked_actions.push(rec);
                 }
-            })
-        });
-        
-        var buckets = [];
-        var date = earliest_date; 
-        while (date < latest_date && earliest_date < latest_date){
-            var bucket = Rally.util.DateTime.format(date,dateFormat);
-            console.log(date, bucket);
-            if (!Ext.Array.contains(buckets, bucket)){
-                buckets.push(bucket);
-            }
-            date = Rally.util.DateTime.add(date,dateInterval,1);
-        }
-        return buckets;
-    },
-    getStatistics: function(artifacts){
-        //Mean, Min, Max, Totals
-        var reasons = this.getUniquePropertyValues(artifacts,"blockedReason");
-        var daysToResolution = {};  
-        Ext.each(reasons, function(reason){
-            daysToResolution[reason] = [];
-        });
-        
-        Ext.Object.each(artifacts, function(key,artifact){
-            if (artifact.blockedReason && artifact.unblockedDate){
-                daysToResolution[artifact.blockedReason].push(artifact.getDaysToResolution());
-            }
-        },this);
-        
-        var data = [];
-        var total = 0;
-        Ext.Object.each(daysToResolution, function(key,val){
-            total += val.length;
-            data.push({reason: key, mean: Ext.Array.mean(val), min: Ext.Array.min(val), max: Ext.Array.max(val), total: val.length});
-        });
-        
-        var all = _.flatten(_.values(daysToResolution));
-        data.push({reason: 'All', mean: Ext.Array.mean(all), min: Ext.Array.min(all), max: Ext.Array.max(all), total: total});
-        return data;
-    },
-    getUniquePropertyValues: function(artifacts, property, transformFn){
-        
-        var unique_values = [];  
-        console.log(transformFn);
-        if (transformFn == undefined){
-            transformFn = function(val){return val;}
-        }
-        console.log('fn',transformFn);
-        Ext.Object.each(artifacts, function(key,artifact){
-            console.log(artifact, artifact[property]);
-            if (artifact[property]){
-                var val = transformFn(artifact[property]);
-                console.log('val',val,Ext.Array.contains(unique_values, val));
-                if (!Ext.Array.contains(unique_values, val)){
-                    unique_values.push(val);
-                }
-            }
-        });
-        return unique_values.sort(); 
-    }
-});
-    Ext.define('Rally.technicalservices.calculator.UniqueArtifactCalculator', {
-        extend: 'Rally.data.lookback.calculator.BaseCalculator',
-        logger: new Rally.technicalservices.Logger(),
-
-        config: {
-            startDate: null,
-            endDate: new Date(),
-            
-            /**
-             * Date format for the categories, if they are dates.  Valid formats are found in the Ext.Date object 
-             */
-            granularity: "month",
-            categoryDateFormat: null, 
-        },
-
-        /**
-         * Calculate extra chart fields that are derived based on the data retrieved by the store. This is passed
-         * to the Lumenize {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the
-         * configuration. For example, if you want to calculate the number of completed stories, you would simply return
-         * if the story is in a completed schedule state or not:
-         *   return [{
-         *       "as": "CompletedStoryCount",
-         *       "f": function(snapshot) {
-         *           var ss = snapshot.ScheduleState;
-         *           if (ss === "Accepted" || ss === "Released") {
-         *               return 1;
-         *           }
-         *           else {
-         *               return 0;
-         *           }
-         *       }
-         *   }];
-         *
-         * You can use these derived fields as part of the calculator metrics calculation.
-         *
-         * Object properties:
-         *
-         *   - The `as` property is the name the field is saved as for future reference
-         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `snapshot` as
-         *   an argument
-         *
-         * @return {Array} a list of derived fields objects
-         */
-        getDerivedFieldsOnInput: function () {
-            return [];
-        },
-
-        /**
-         * Calculate the metrics that are displayed on the chart from the data retrieved by the store. This is passed
-         * to the Lumenize {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the
-         * configuration. Metrics calculations can use fields that are derived using the #getDerivedFieldsOnInput
-         * function. For example, if I derived a CompletedStoryCount field, I can display that field as a bar chart by
-         * specifying:
-         *   return [{
-         *      "field": "CompletedStoryCount",
-         *      "as": "Completed Stories",
-         *      "f": "sum",
-         *      "display": "column"
-         *   }];
-         *
-         * The field is displayed in the chart as "Completed Stories" with each bar being a sum of that days completed
-         * stories.
-         *
-         * Object properties:
-         *
-         *   - The `field` property is the field name to use to calculate the metric. This can be a field from the data
-         *   or a derived field.
-         *   - The `as` property is the name displayed to the user in the chart
-         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `snapshot` as
-         *   an argument
-         *   - The `display` property is used by the chart to determine how to display the data on a chart. Can be any
-         *   Highcharts specific type, e.g., "line" or "column"
-         *
-         * @return {Array} a list of metric objects
-         */
-        getMetrics: function () {
-            return [];
-        },
-
-        /**
-         * Calculate summary metrics based on the data retrieved from the store. This is passed to the Lumenize
-         * {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the configuration.
-         * Each summary metric also has access to any previously defined metrics or derived fields. This function is
-         * useful to generate data that you do not necessarily want to render on the chart, but would like to use to get
-         * more derived fields after the main chart metrics are defined. For example, if you wanted the max numbers for
-         * different fields, you would specify:
-         *      return [
-         *          { "field": "TaskUnitScope", "f": "max" },
-         *          { "field": "TaskUnitBurnDown", "f": "max" },
-         *      ];
-         *
-         * The fields would then be available to the objects in #getDerivedFieldsAfterSummary. Note that the fields in
-         * this case will need to be referenced by `TaskUnitScope_max` due to the use of the built-in `max` function. If
-         * you wish to specify your own function, you must use the `as` property in order to reference the field in the
-         * future. For example,
-         *      return [{
-         *          "as": "TaskUnitBurnDown_max_index",
-         *          "f": function(seriesData, metrics) {
-         *              var i, length = seriesData.length;
-         *              for(i = 0; i < length; i++) {
-         *                  var data = seriesData[i];
-         *                  if(data.TaskUnitBurnDown == metrics.TaskUnitBurnDown_max) {
-         *                      return i;
-         *                  }
-         *              }
-         *          }
-         *      }];
-         *
-         * Object properties:
-         *
-         *   - The `field` property is the name of the field to use to calculate the new summary metric. This field
-         *   can be from the data or from a previously derived field.
-         *   - The `as` property is only used when you supply a custom function to calculate the summary metric. It is
-         *   the name for future reference of the field.
-         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `seriesData`
-         *   and `metrics` as arguments. This is used in conjunction with the `as` property.
-         *
-         * @return {Array}
-         */
-        getSummaryMetricsConfig: function () {
-            return [];
-        },
-
-        /**
-         * Calculate extra chart fields to display on the chart using the fields defined in by the summary metrics
-         * configuration. This is passed to the {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator} as
-         * part of the configuration. This function is useful when you want to derive more fields to display on your
-         * chart. For example, if you wanted to calculate an ideal line for a burn chart using the `TaskUnitScope_max`
-         * field, you would specify:
-         *      return [{
-         *          "as": "Ideal",
-         *          "f": function(snapshot, index, metrics, seriesData) {
-         *              var max = metrics.TaskUnitScope_max,
-         *                  increments = seriesData.length - 1,
-         *                  incrementAmount = max / increments;
-         *
-         *              return Math.floor(100 * (max - index * incrementAmount)) / 100;
-         *          },
-         *          "display": "line"
-         *      }];
-         *
-         * This field would be displayed in the chart as an ideal line for the given data.
-         *
-         * Object properties:
-         *
-         *   - The `as` property is the name displayed to the user in the chart
-         *   - The `f` property is a custom function that takes a snapshot, index, chart metrics, and the series data as
-         *   arguments
-         *   - The `display` property is used by the chart to determine how to display the data on a chart. Can be any
-         *   Highcharts specific type, e.g., "line" or "column"
-         *
-         * @return {Array}
-         */
-        getDerivedFieldsAfterSummary: function () {
-            return [];
-        },
-        runCalculation: function (snapshots) {
-            this.logger.log("runCalculations snapshots",snapshots.length, snapshots);
-            
-            var snaps_by_oid = this._aggregateSnapshots(snapshots);
-            var buckets = this._getDateBuckets(this.startDate, this.endDate, this.granularity); 
-            
-            var series = null;
-
-            var categories = this._formatCategories(buckets, this.dateFormat);  
-            return {categories: categories, series: series};
-        },
-        _getDateBuckets: function(startDate, endDate, granularity){
-
-            var bucketStartDate = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(startDate);
-            var bucketEndDate = Rally.technicalservices.Toolbox.getEndOfMonthAsDate(endDate);
-           
-            this.logger.log('_getDateBuckets',startDate,bucketStartDate,endDate,bucketEndDate,granularity);
-            
-            var date = bucketStartDate;
-            
-            var buckets = []; 
-            while (date<bucketEndDate && bucketStartDate < bucketEndDate){
-                buckets.push(date);
-                date = Rally.util.DateTime.add(date,granularity,1);
-            }
-            return buckets;  
-        },
-        _formatCategories: function(buckets, dateFormat){
-            var categories = [];
-            Ext.each(buckets, function(bucket){
-                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
-            });
-            return categories; 
-        },
-        
-        /**
-         * aggregateSnapsots:  returns a hash of objects (key = ObjID) with all snapshots for the object
-         */
-        _aggregateSnapshots: function(snapshots){
-            //Return a hash of objects (key=ObjectID) with all snapshots for the object
-            var snaps_by_oid = {};
-            Ext.each(snapshots, function(snap){
-                var oid = snap.ObjectID;
-                if (snaps_by_oid[oid] == undefined){
-                    snaps_by_oid[oid] = [];
-                }
-                snaps_by_oid[oid].push(snap);
                 
+                if (was_blocked === true && blocked === false){
+                    //Transition from blocked 
+                    var rec_found = false; 
+                    var idx=-1; 
+                    for (var i=0; i<blocked_actions.length; i++){
+                        if (blocked_actions[i].BlockedDate == last_blocked_date){
+                            idx = i;  
+                        }
+                    }
+
+                    if (idx<0){
+                        idx = blocked_actions.length; 
+                        blocked_actions.push(rec);  
+                    }
+                    blocked_actions[idx].Name = name;  
+                    blocked_actions[idx].UnblockedDate = date;  
+                    blocked_actions[idx].BlockedReason = previous_reason;  
+                    last_blocked_date = null; 
+                }
             });
-            return snaps_by_oid;
-        }
-    });
+            block_action[formatted_id] = blocked_actions;
+        });
+        return block_action         
+    },
+//    getDateBucketsForArtifacts: function(artifacts, artifactProperties, dateInterval, dateFormat){
+//        var earliest_date = new Date();
+//        var latest_date = Rally.util.DateTime.add(earliest_date,"year",-20);
+//        
+//        Ext.Object.each(artifacts,function(key,artifact){
+//            Ext.each(artifactProperties, function(prop){
+//                if (artifact[prop]){
+//                    var date = Rally.util.DateTime.fromIsoString(artifact[prop]);
+//                    if (date < earliest_date){
+//                        earliest_date = date; 
+//                    }
+//                    if (date > latest_date){
+//                        latest_date = date;
+//                    }                
+//                }
+//            })
+//        });
+//        
+//        var buckets = [];
+//        var date = earliest_date; 
+//        while (date < latest_date && earliest_date < latest_date){
+//            var bucket = Rally.util.DateTime.format(date,dateFormat);
+//            console.log(date, bucket);
+//            if (!Ext.Array.contains(buckets, bucket)){
+//                buckets.push(bucket);
+//            }
+//            date = Rally.util.DateTime.add(date,dateInterval,1);
+//        }
+//        return buckets;
+//    },
+//    getStatistics: function(artifacts){
+//        //Mean, Min, Max, Totals
+//        var reasons = this.getUniquePropertyValues(artifacts,"blockedReason");
+//        var daysToResolution = {};  
+//        Ext.each(reasons, function(reason){
+//            daysToResolution[reason] = [];
+//        });
+//        
+//        Ext.Object.each(artifacts, function(key,artifact){
+//            if (artifact.blockedReason && artifact.unblockedDate){
+//                daysToResolution[artifact.blockedReason].push(artifact.getDaysToResolution());
+//            }
+//        },this);
+//        
+//        var data = [];
+//        var total = 0;
+//        Ext.Object.each(daysToResolution, function(key,val){
+//            total += val.length;
+//            data.push({reason: key, mean: Ext.Array.mean(val), min: Ext.Array.min(val), max: Ext.Array.max(val), total: val.length});
+//        });
+//        
+//        var all = _.flatten(_.values(daysToResolution));
+//        data.push({reason: 'All', mean: Ext.Array.mean(all), min: Ext.Array.min(all), max: Ext.Array.max(all), total: total});
+//        return data;
+//    },
+//    getUniquePropertyValues: function(artifacts, property, transformFn){
+//        
+//        var unique_values = [];  
+//        console.log(transformFn);
+//        if (transformFn == undefined){
+//            transformFn = function(val){return val;}
+//        }
+//        console.log('fn',transformFn);
+//        Ext.Object.each(artifacts, function(key,artifact){
+//            console.log(artifact, artifact[property]);
+//            if (artifact[property]){
+//                var val = transformFn(artifact[property]);
+//                console.log('val',val,Ext.Array.contains(unique_values, val));
+//                if (!Ext.Array.contains(unique_values, val)){
+//                    unique_values.push(val);
+//                }
+//            }
+//        });
+//        return unique_values.sort(); 
+//    }
+});
     Ext.define('Rally.technicalservices.DataExportDialog', {
         extend: 'Rally.ui.dialog.Dialog',
         logger: new Rally.technicalservices.Logger(),
@@ -719,8 +425,12 @@ Ext.define('Rally.technicalservices.FileUtilities', {
                     if (typeof d[key] === 'object'){
                         if (d[key].FormattedID) {
                             text += Ext.String.format("\"{0}\",",d[key].FormattedID ); 
-                        } else {
+                        } else if (d[key].Name) {
                             text += Ext.String.format("\"{0}\",",d[key].Name );                    
+                        } else if (!isNaN(Date.parse(d[key]))){
+                            text += Ext.String.format("\"{0}\",",Rally.util.DateTime.formatWithDefaultDateTime(d[key]));
+                        }else {
+                            text += Ext.String.format("\"{0}\",",d[key].toString());
                         }
                     } else {
                         text += Ext.String.format("\"{0}\",",d[key] );                    
@@ -768,7 +478,9 @@ Ext.override(Rally.ui.chart.Chart,{
 
         config: {
             startDate: null,
-            endDate: null
+            endDate: null,
+            dateFormat: "F",
+            granularity: "month"
         },
 
         /**
@@ -917,59 +629,30 @@ Ext.override(Rally.ui.chart.Chart,{
          * @inheritdoc
          */
         runCalculation: function (snapshots) {
-            console.log("runCalculations",snapshots.length, snapshots);
             
-            var snaps_by_oid = this._aggregateSnapshots(snapshots);
+            var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOid(snapshots);
             
-            var granularity = "month";
-            var dateFormat = "F";
-            var date_buckets = this._getDateBuckets(this.startDate, this.endDate, granularity);
-            var series = this._getSeries(snaps_by_oid,date_buckets,granularity);
-            var categories = this._formatCategories(date_buckets, dateFormat);  
-            console.log({categories: categories, series: series});
+
+            var date_buckets = Rally.technicalservices.Toolbox.getDateBuckets(this.startDate, this.endDate, this.granularity);
+            var series = this._getSeries(snaps_by_oid,date_buckets,this.granularity);
+            var categories = Rally.technicalservices.Toolbox.formatDateBuckets(date_buckets, this.dateFormat);  
             return {categories: categories, series: series};
-        },
-        _getDateBuckets: function(startDate, endDate, granularity){
-            console.log('_getDateBuckets',startDate,endDate,granularity);
-            var start_year = startDate.getFullYear();
-            var start_month = startDate.getMonth();
-            var start_day = startDate.getDate();  
-            if (granularity == "month"){
-                start_day = 1; 
-            }
-            
-            var end_year = endDate.getFullYear();
-            var end_month = endDate.getMonth();
-            var end_day = endDate.getDate() + 1; 
-            if (granularity == "month"){
-                //months are zero-based and 0 day returns the last day of the previous month
-                end_day = new Date(end_year, end_month+1,0).getDate();
-            }
-            console.log(end_year,end_month,end_day);
-            var bucketStartDate = new Date(start_year,start_month,start_day,0,0,0,0);
-            var bucketEndDate = new Date(end_year,end_month,end_day,0,0,0,0);
-            var date = bucketStartDate;
-            
-            var buckets = []; 
-            console.log(bucketEndDate, bucketStartDate);
-            while (date<bucketEndDate && bucketStartDate < bucketEndDate){
-                buckets.push(date);
-                date = Rally.util.DateTime.add(date,granularity,1);
-            }
-            return buckets;  
-            
         },
         _getSeries: function(snaps_by_oid, buckets, granularity){
             
             var total_counter = _.range(buckets.length).map(function () { return 0 }),
                 blocked_counter =_.range(buckets.length).map(function () { return 0 });
-
+            var export_data = []; 
+            
             Ext.Object.each(snaps_by_oid, function(oid, snaps){
                 var oid_end_date = null, oid_start_date = null,
                     oid_blocked_end_date = null, oid_blocked_start_date = null,
-                    oid_blocked = false; 
+                    oid_blocked = false, reason = null, fid = null, name = null; 
                 
                 Ext.each(snaps, function(snap){
+                    reason = snap.BlockedReason;  
+                    name = snap.Name;
+                    fid = snap.FormattedID;  
                     
                     var snap_from_date = Rally.util.DateTime.fromIsoString(snap._ValidFrom);
                     if (oid_start_date == null ||  snap_from_date < oid_start_date){
@@ -980,7 +663,7 @@ Ext.override(Rally.ui.chart.Chart,{
                         oid_end_date = snap_to_date;
                     }
                     
-                    if (snap.BlockedReason && snap.Blocked){
+                    if (snap.Blocked){
                         oid_blocked = true; 
                         if (oid_blocked_start_date == null || oid_blocked_start_date > snap_from_date){
                             oid_blocked_start_date = snap_from_date;
@@ -989,53 +672,38 @@ Ext.override(Rally.ui.chart.Chart,{
                             oid_blocked_end_date = snap_to_date;  
                         }
                     }
-                    
                 });
-
+                var data = {FormattedID: fid, Name: name, Blocked: oid_blocked, BlockedDate: oid_blocked_start_date, UnblockedDate: oid_blocked_end_date};
                 for (var i=0; i<buckets.length; i++){
+                    data[Rally.util.DateTime.format(buckets[i],this.dateFormat)] = 0;
                     if (oid_end_date >= buckets[i] && oid_start_date < Rally.util.DateTime.add(buckets[i],granularity,1)){
                         total_counter[i]++;
                     }
                     if (oid_blocked){
-                        if (oid_blocked_start_date >= buckets[i] && oid_blocked_start_date < Rally.util.DateTime.add(buckets[i],granularity,1)){
+                      if (oid_blocked_start_date < Rally.util.DateTime.add(buckets[i],granularity,1) && oid_blocked_end_date >= buckets[i]){
+                            data[Rally.util.DateTime.format(buckets[i],this.dateFormat)] = 1;  
                             blocked_counter[i]++;
                         }
                     }
                 }
-            });
+                export_data.push(data);
+            },this);
             
             var blocked_pct = _.range(buckets.length).map(function () { return 0 }),
             not_blocked_pct = _.range(buckets.length).map(function () { return 0 });  
             
             for(var i=0; i< buckets.length; i++){
-                blocked_pct[i] = blocked_counter[i]/total_counter[i] * 100;
-                not_blocked_pct[i] = (total_counter[i] - blocked_counter[i])/total_counter[i] *100;  
+                blocked_pct[i] = Math.round(blocked_counter[i]/total_counter[i] * 100);
+                not_blocked_pct[i] = Math.round((total_counter[i] - blocked_counter[i])/total_counter[i] *100);  
             }
-            
+            this.data = export_data; 
             return [{name: '% Not Blocked', data: not_blocked_pct, stack: 1},
                     {name: '% Blocked', data: blocked_pct, stack: 1}];
         },
-
-        _formatCategories: function(buckets, dateFormat){
-            var categories = [];
-            Ext.each(buckets, function(bucket){
-                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
-            });
-            return categories; 
-        },
-        _aggregateSnapshots: function(snapshots){
-            //Return a hash of objects (key=ObjectID) with all snapshots for the object
-            var snaps_by_oid = {};
-            Ext.each(snapshots, function(snap){
-                var oid = snap.ObjectID;
-                if (snaps_by_oid[oid] == undefined){
-                    snaps_by_oid[oid] = [];
-                }
-                snaps_by_oid[oid].push(snap);
-                
-            });
-            return snaps_by_oid;
+        getData: function(){
+            return this.data; 
         }
+
     });
 Ext.define('Rally.technicalservices.Toolbox',{
     singleton: true,
@@ -1049,7 +717,43 @@ Ext.define('Rally.technicalservices.Toolbox',{
         var month = dateInMonth.getMonth();
         var day = new Date(year, month+1,0).getDate();
         return new Date(year,month,day,0,0,0,0);
-    }
+    },
+    aggregateSnapsByOid: function(snaps){
+        //Return a hash of objects (key=ObjectID) with all snapshots for the object
+        var snaps_by_oid = {};
+        Ext.each(snaps, function(snap){
+            var oid = snap.ObjectID || snap.get('ObjectID');
+            if (snaps_by_oid[oid] == undefined){
+                snaps_by_oid[oid] = [];
+            }
+            snaps_by_oid[oid].push(snap);
+            
+        });
+        return snaps_by_oid;
+    },
+    getDateBuckets: function(startDate, endDate, granularity){
+
+        var bucketStartDate = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(startDate);
+        var bucketEndDate = Rally.technicalservices.Toolbox.getEndOfMonthAsDate(endDate);
+       
+        var date = bucketStartDate;
+        
+        var buckets = []; 
+        while (date<bucketEndDate && bucketStartDate < bucketEndDate){
+            buckets.push(date);
+            date = Rally.util.DateTime.add(date,granularity,1);
+        }
+        return buckets;  
+    },
+    formatDateBuckets: function(buckets, dateFormat){
+            var categories = [];
+            Ext.each(buckets, function(bucket){
+                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
+            });
+            categories[categories.length-1] += "*"; 
+            return categories; 
+    },
+
 
 });
     Ext.define('Rally.technicalservices.calculator.BlockedArrivalKill', {
@@ -1302,6 +1006,7 @@ Ext.define('Rally.technicalservices.Toolbox',{
             Ext.each(buckets, function(bucket){
                 categories.push(Rally.util.DateTime.format(bucket,dateFormat));
             });
+            categories[categories.length-1] += "*"; 
             return categories; 
         },
         
@@ -1362,10 +1067,11 @@ Ext.define('CustomApp', {
                         labelAlign: 'right',
                         displayField: 'name',
                         valueField: 'value',
+                        minWidth: 300,
                         value: -3,
                         listeners: {
                             scope: this,
-                            select: this._buildChartNew  
+                            select: this._buildChart  
                         }
                     });
                     
@@ -1379,7 +1085,7 @@ Ext.define('CustomApp', {
                         //disabled: true
                     });
 
-                    this._buildChartNew(cb);
+                    this._buildChart(cb);
     },    
     _viewData: function(){
         this.logger.log('_viewData');
@@ -1397,27 +1103,7 @@ Ext.define('CustomApp', {
         this.down('#btn-data').setDisabled(mask);
         this.setLoading(mask);
     },
-    _fetchData: function(cb){
-
-        this._maskWindow(true);
-        var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
-        var project = this.getContext().getProject().ObjectID;  
-        
-        this.logger.log('_fetchData', start_date, project);
-        Ext.create('Rally.technicalservices.BlockedArtifact.Store',{
-            startDate: start_date,
-            project: project,
-            listeners: {
-                scope: this,
-                artifactsloaded: function(blockedArtifacts,success){
-                    this.logger.log('artifactsLoaded', blockedArtifacts, success);
-                    this._buildChart(blockedArtifacts,start_date);
-                    this._maskWindow(false);
-                }
-            }
-        });
-    },
-    _buildChartNew: function(cb){
+    _buildChart: function(cb){
         
         var start_date = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(Rally.util.DateTime.add(new Date(), "month",cb.getValue()));
         var project = this.getContext().getProject().ObjectID; 
@@ -1471,57 +1157,6 @@ Ext.define('CustomApp', {
                         }
                     }
              }
-        });
-    },   
-    _buildChart: function(artifacts,startDate){
-        this.logger.log('_buildChart artifacts', artifacts);
-
-        this.down('#display_box').removeAll(); 
-        
-        var dateFormat = "F";
-        var dateInterval = "month";
-        
-//        var categories = Rally.technicalservices.BlockedToolbox.getDateBucketsForArtifacts(artifacts, ["blockedDate","unblockedDate"], dateInterval, dateFormat);
-        
-        var categories = Rally.technicalservices.BlockedToolbox.getDateBuckets(startDate, new Date(), dateInterval);
-        categories = Rally.technicalservices.BlockedToolbox.formatCategories(categories, dateFormat);
-        var new_blockers = Rally.technicalservices.BlockedToolbox.bucketDataByDate(artifacts,"blockedDate",dateInterval,dateFormat,categories);
-        var resolved_blockers = Rally.technicalservices.BlockedToolbox.bucketDataByDate(artifacts,"unblockedDate",dateInterval,dateFormat,categories);
-        
-        this.logger.log('_buildChart blocker data (new, resolved)', new_blockers, resolved_blockers);
- 
-        var series = [];
-        var nb_data = [], rb_data = []; 
-        Ext.each(categories, function(category){
-            nb_data.push(new_blockers[category]);
-            rb_data.push(resolved_blockers[category]);
-        },this);
-        series.push({name: "New Blockers", data: nb_data});
-        series.push({name: "Resolved Blockers", data: rb_data});
-        
-        this.logger.log('_buildChart', 'categories',categories,'series', series);
-        
-        this.down('#display_box').add({
-            xtype: 'rallychart',
-            loadMask: false,
-            chartData: {
-                series: series,
-                categories: categories
-            }, 
-            chartConfig: {
-                    chart: {
-                        type: 'column'
-                    },
-                    title: {
-                        text: this.chartTitle
-                    },
-                    yAxis: {
-                        min: 0,
-                        title: {
-                            text: 'Blockers'
-                        }
-                    }
-            }
         });
     }
 });

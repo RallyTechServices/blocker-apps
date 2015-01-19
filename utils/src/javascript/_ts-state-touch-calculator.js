@@ -3,7 +3,9 @@
 
         config: {
             startDate: null,
-            endDate: null
+            endDate: null,
+            dateFormat: "F",
+            granularity: "month"
         },
 
         /**
@@ -152,59 +154,30 @@
          * @inheritdoc
          */
         runCalculation: function (snapshots) {
-            console.log("runCalculations",snapshots.length, snapshots);
             
-            var snaps_by_oid = this._aggregateSnapshots(snapshots);
+            var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOid(snapshots);
             
-            var granularity = "month";
-            var dateFormat = "F";
-            var date_buckets = this._getDateBuckets(this.startDate, this.endDate, granularity);
-            var series = this._getSeries(snaps_by_oid,date_buckets,granularity);
-            var categories = this._formatCategories(date_buckets, dateFormat);  
-            console.log({categories: categories, series: series});
+
+            var date_buckets = Rally.technicalservices.Toolbox.getDateBuckets(this.startDate, this.endDate, this.granularity);
+            var series = this._getSeries(snaps_by_oid,date_buckets,this.granularity);
+            var categories = Rally.technicalservices.Toolbox.formatDateBuckets(date_buckets, this.dateFormat);  
             return {categories: categories, series: series};
-        },
-        _getDateBuckets: function(startDate, endDate, granularity){
-            console.log('_getDateBuckets',startDate,endDate,granularity);
-            var start_year = startDate.getFullYear();
-            var start_month = startDate.getMonth();
-            var start_day = startDate.getDate();  
-            if (granularity == "month"){
-                start_day = 1; 
-            }
-            
-            var end_year = endDate.getFullYear();
-            var end_month = endDate.getMonth();
-            var end_day = endDate.getDate() + 1; 
-            if (granularity == "month"){
-                //months are zero-based and 0 day returns the last day of the previous month
-                end_day = new Date(end_year, end_month+1,0).getDate();
-            }
-            console.log(end_year,end_month,end_day);
-            var bucketStartDate = new Date(start_year,start_month,start_day,0,0,0,0);
-            var bucketEndDate = new Date(end_year,end_month,end_day,0,0,0,0);
-            var date = bucketStartDate;
-            
-            var buckets = []; 
-            console.log(bucketEndDate, bucketStartDate);
-            while (date<bucketEndDate && bucketStartDate < bucketEndDate){
-                buckets.push(date);
-                date = Rally.util.DateTime.add(date,granularity,1);
-            }
-            return buckets;  
-            
         },
         _getSeries: function(snaps_by_oid, buckets, granularity){
             
             var total_counter = _.range(buckets.length).map(function () { return 0 }),
                 blocked_counter =_.range(buckets.length).map(function () { return 0 });
-
+            var export_data = []; 
+            
             Ext.Object.each(snaps_by_oid, function(oid, snaps){
                 var oid_end_date = null, oid_start_date = null,
                     oid_blocked_end_date = null, oid_blocked_start_date = null,
-                    oid_blocked = false; 
+                    oid_blocked = false, reason = null, fid = null, name = null; 
                 
                 Ext.each(snaps, function(snap){
+                    reason = snap.BlockedReason;  
+                    name = snap.Name;
+                    fid = snap.FormattedID;  
                     
                     var snap_from_date = Rally.util.DateTime.fromIsoString(snap._ValidFrom);
                     if (oid_start_date == null ||  snap_from_date < oid_start_date){
@@ -215,7 +188,7 @@
                         oid_end_date = snap_to_date;
                     }
                     
-                    if (snap.BlockedReason && snap.Blocked){
+                    if (snap.Blocked){
                         oid_blocked = true; 
                         if (oid_blocked_start_date == null || oid_blocked_start_date > snap_from_date){
                             oid_blocked_start_date = snap_from_date;
@@ -224,51 +197,36 @@
                             oid_blocked_end_date = snap_to_date;  
                         }
                     }
-                    
                 });
-
+                var data = {FormattedID: fid, Name: name, Blocked: oid_blocked, BlockedDate: oid_blocked_start_date, UnblockedDate: oid_blocked_end_date};
                 for (var i=0; i<buckets.length; i++){
+                    data[Rally.util.DateTime.format(buckets[i],this.dateFormat)] = 0;
                     if (oid_end_date >= buckets[i] && oid_start_date < Rally.util.DateTime.add(buckets[i],granularity,1)){
                         total_counter[i]++;
                     }
                     if (oid_blocked){
-                        if (oid_blocked_start_date >= buckets[i] && oid_blocked_start_date < Rally.util.DateTime.add(buckets[i],granularity,1)){
+                      if (oid_blocked_start_date < Rally.util.DateTime.add(buckets[i],granularity,1) && oid_blocked_end_date >= buckets[i]){
+                            data[Rally.util.DateTime.format(buckets[i],this.dateFormat)] = 1;  
                             blocked_counter[i]++;
                         }
                     }
                 }
-            });
+                export_data.push(data);
+            },this);
             
             var blocked_pct = _.range(buckets.length).map(function () { return 0 }),
             not_blocked_pct = _.range(buckets.length).map(function () { return 0 });  
             
             for(var i=0; i< buckets.length; i++){
-                blocked_pct[i] = blocked_counter[i]/total_counter[i] * 100;
-                not_blocked_pct[i] = (total_counter[i] - blocked_counter[i])/total_counter[i] *100;  
+                blocked_pct[i] = Math.round(blocked_counter[i]/total_counter[i] * 100);
+                not_blocked_pct[i] = Math.round((total_counter[i] - blocked_counter[i])/total_counter[i] *100);  
             }
-            
+            this.data = export_data; 
             return [{name: '% Not Blocked', data: not_blocked_pct, stack: 1},
                     {name: '% Blocked', data: blocked_pct, stack: 1}];
         },
-
-        _formatCategories: function(buckets, dateFormat){
-            var categories = [];
-            Ext.each(buckets, function(bucket){
-                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
-            });
-            return categories; 
-        },
-        _aggregateSnapshots: function(snapshots){
-            //Return a hash of objects (key=ObjectID) with all snapshots for the object
-            var snaps_by_oid = {};
-            Ext.each(snapshots, function(snap){
-                var oid = snap.ObjectID;
-                if (snaps_by_oid[oid] == undefined){
-                    snaps_by_oid[oid] = [];
-                }
-                snaps_by_oid[oid].push(snap);
-                
-            });
-            return snaps_by_oid;
+        getData: function(){
+            return this.data; 
         }
+
     });

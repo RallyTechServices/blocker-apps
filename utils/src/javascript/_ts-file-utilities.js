@@ -45,8 +45,12 @@ Ext.define('Rally.technicalservices.FileUtilities', {
                     if (typeof d[key] === 'object'){
                         if (d[key].FormattedID) {
                             text += Ext.String.format("\"{0}\",",d[key].FormattedID ); 
-                        } else {
+                        } else if (d[key].Name) {
                             text += Ext.String.format("\"{0}\",",d[key].Name );                    
+                        } else if (!isNaN(Date.parse(d[key]))){
+                            text += Ext.String.format("\"{0}\",",Rally.util.DateTime.formatWithDefaultDateTime(d[key]));
+                        }else {
+                            text += Ext.String.format("\"{0}\",",d[key].toString());
                         }
                     } else {
                         text += Ext.String.format("\"{0}\",",d[key] );                    

@@ -3,19 +3,22 @@ Ext.define('CustomApp', {
     componentCls: 'app',
     logger: new Rally.technicalservices.Logger(),
     items: [
-        {xtype:'container',itemId:'selection_box'},
+        {xtype:'container',itemId:'selection_box', layout: {type: 'hbox'}, padding: 10},
         {xtype:'container',itemId:'display_box'},
         {xtype:'tsinfolink'}
     ],
     chartTitle: 'Blocker Causes',
+    types: ['HierarchicalRequirement','Defect','Task'],
+    hydrate: ['_TypeHierarchy'],
+    fetch: ['Blocked','BlockedReason','Blocker','_TypeHierarchy'],
     pickerOptions: [
-                    {name: 'Last Month', value: -1},
-                    {name: 'Last 2 Months', value: -2},
-                    {name: 'Last 3 Months', value: -3},
-                    {name: 'Last 6 Months', value: -6},
-                    {name: 'Last 12 Months', value: -12}
+                    {name: 'Last Complete Month', value: -1},
+                    {name: 'Last 2 Complete Months', value: -2},
+                    {name: 'Last 3 Complete Months', value: -3},
+                    {name: 'Last 6 Complete Months', value: -6},
+                    {name: 'Last 12 Complete Months', value: -12}
                 ],
-    defaultPickerOption: 'Last 3 Months',
+    defaultPickerOption: 'Last 3 Complete Months',
     launch: function() {
         this._initialize();
     },
@@ -33,48 +36,70 @@ Ext.define('CustomApp', {
             labelAlign: 'right',
             displayField: 'name',
             valueField: 'value',
+            minWidth: 300,
             value: -3,
             listeners: {
                 scope: this,
-                select: this._fetchData  
+                select: this._buildChart  
             }
         });
-        this._fetchData(cb);
-    },    
-    _fetchData: function(cb){
+        this.down('#selection_box').add({
+            xtype: 'rallybutton',
+            itemId: 'btn-data',
+            text: 'Data...',
+            scope: this,  
+            margin: '0 0 0 10',
+            handler: this._viewData
+        });
+        this._buildChart(cb);
+    }, 
+    _viewData: function(){
+        this.logger.log('_viewData');
+        
+        var data = this.down('#crt').calculator.getData();  
+        Ext.create('Rally.technicalservices.DataExportDialog', {
+            draggable: true,
+            modal: true,
+            autoShow: true,
+            title: 'Data for ' + this.chartTitle,
+            data: data
+        });
+    },
+    _buildChart: function(cb){
         var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
         var project = this.getContext().getProject().ObjectID;  
         
-        Ext.create('Rally.technicalservices.BlockedArtifact.Store',{
-            startDate: start_date,
-            project: project,
-            listeners: {
-                scope: this,
-                artifactsloaded: function(blockedArtifacts,success){
-                    this.logger.log('artifactsLoaded', blockedArtifacts, success);
-                    this._buildChart(blockedArtifacts);
-                }
-            }
-        });
-        
-    },
-    _buildChart: function(artifacts){
         this.down('#display_box').removeAll();
-        var counts = Rally.technicalservices.BlockedToolbox.getCountsByReason(artifacts);
         
-        var series_data = []; 
-        Ext.Object.each(counts, function(key,val){
-            series_data.push([key,val]);
-        },this);
-        var series = [{type: 'pie', name: this.chartTitle, data: series_data}];
-        
-        this.logger.log('_buildCharts', artifacts, series);
+        this.logger.log('_buildCharts', start_date, project);
         
         this.down('#display_box').add({
             xtype: 'rallychart',
-            chartData: {
-                series: series,
-            }, 
+            itemId: 'crt',
+            calculatorType: 'Rally.technicalservices.calculator.BlockedReason',
+            calculatorConfig: {},
+            storeConfig: {
+                fetch: this.fetch,
+                hydrate: this.hydrate,
+                find: {$or: [
+                             {"BlockedReason": {$exists: true}},
+                             {"_PreviousValues.BlockedReason": {$exists: true}}
+                      ],
+                      "_ValidFrom": {$gte: start_date}
+                },
+                filters: [
+                    {
+                        property: '_TypeHierarchy',
+                        operator: 'in',
+                        value: this.types
+                    },{
+                        property: '_ProjectHierarchy',
+                        operator: 'in',
+                        value: [project]
+                    }
+                ],
+                compress: true 
+            },
             chartConfig: {
                     chart: {
                         type: 'pie'
