@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Blocker Resolution Time</title>
+    <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
+    <!--  Build Date: Mon Jan 19 2015 12:56:31 GMT-0700 (MST) -->
+    
+    <script type="text/javascript">
+        var APP_BUILD_DATE = "Mon Jan 19 2015 12:56:31 GMT-0700 (MST)";
+        var CHECKSUM = 28253112662;
+    </script>
+    
+    <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function() {
+             
+/**
+ * A link that pops up a version dialog box
+ */
+
+Ext.define('Rally.technicalservices.InfoLink',{
+    extend: 'Ext.Component',
+    alias: 'widget.tsinfolink',
+    
+    /**
+     * @cfg {String} informationHtml
+     * Additional text to be displayed on the popup dialog (for exmaple,
+     * to add a description of the app's use or functionality)
+     */
+    informationHtml: null,
+    
+    /**
+     * 
+     * cfg {String} title
+     * The title for the dialog box
+     */
+     title: "Build Information",
+    
+    renderTpl: "<div id='{id}-infolinkWrap' class='tsinfolink'>i</div>",
+
+    initComponent: function() {
+        this.callParent(arguments);
+       
+    },
+    
+    onRender: function() {
+        this.callParent(arguments);
+        this.mon(this.el,'click',this.onClick,this);
+    },
+    _generateChecksum: function(string){
+        var chk = 0x12345678,
+            i;
+        string = string.replace(/var CHECKSUM = .*;/,"");
+        string = string.replace(/\s/g,"");  //Remove all whitespace from the string.
+        
+        for (i = 0; i < string.length; i++) {
+            chk += (string.charCodeAt(i) * i);
+        }
+    
+        return chk;
+    },
+    _checkChecksum: function(container) {
+        var me = this;
+        Ext.Ajax.request({
+            url: document.URL,
+            params: {
+                id: 1
+            },
+            success: function (response) {
+                text = response.responseText;
+                if ( CHECKSUM ) {
+                    if ( CHECKSUM !== me._generateChecksum(text) ) {
+                        console.log("Checksums don't match!");
+                        if ( me.dialog ) {
+                            me.dialog.add({xtype:'container',html:'Checksums do not match'});
+                        }
+                    }
+                }
+            }
+        });
+    },
+    onClick: function(e) {
+        var me = this;
+        this._checkChecksum(this);
+        
+        var dialog_items = [];
+        
+        if ( this.informationHtml ) {
+            dialog_items.push({
+                xtype:'container',
+                html: this.informationHtml
+            });
+        }
+                
+        dialog_items.push({
+            xtype:'container',
+            html:"This app was created by the Rally Technical Services Team."
+        });
+        
+        if ( APP_BUILD_DATE ) {
+            dialog_items.push({
+                xtype:'container',
+                html:'Build date/time: ' + APP_BUILD_DATE
+            });
+        }
+        
+        if (this.dialog){this.dialog.destroy();}
+        this.dialog = Ext.create('Rally.ui.dialog.Dialog',{
+            defaults: { padding: 5, margin: 5 },
+            closable: true,
+            draggable: true,
+            title: me.title,
+            items: dialog_items
+        });
+        this.dialog.show();
+    }
+});
+
+/*
+ */
+Ext.define('Rally.technicalservices.Logger',{
+    constructor: function(config){
+        Ext.apply(this,config);
+    },
+    log: function(args){
+        var timestamp = "[ " + Ext.util.Format.date(new Date(), "Y-m-d H:i:s.u") + " ]";
+        //var output_args = arguments;
+        //output_args.unshift( [ "[ " + timestamp + " ]" ] );
+        //output_args = Ext.Array.push(output_args,arguments);
+        
+        var output_args = [];
+        output_args = Ext.Array.push(output_args,[timestamp]);
+        output_args = Ext.Array.push(output_args, Ext.Array.slice(arguments,0));
+
+        window.console && console.log.apply(console,output_args);
+    }
+
+});
+
+Ext.define('Rally.technicalservices.BlockedToolbox',{
+    singleton: true,
+    getCountsByReason: function(snaps_by_oid){
+        var counts = {};
+        var data = [];  
+        Ext.Object.each(snaps_by_oid, function(oid, snaps){
+            var rec = {ObjectID: oid, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
+            Ext.each(snaps, function(snap){
+                if (snap.BlockedReason){
+                    if (counts[snap.BlockedReason] == undefined){
+                        counts[snap.BlockedReason] = 0; 
+                    } 
+                    rec.BlockedReason = snap.BlockedReason;
+                    counts[snap.BlockedReason]++; 
+                }
+            });
+            data.push(rec);
+        },this);
+        return {counts: counts, data: data};  
+    },
+    bucketDataByDate: function(artifacts, artifactProperty, dateInterval, dateFormat, bucketedDateStrings){
+        var buckets = {};
+        console.log(bucketedDateStrings);
+        Ext.each(bucketedDateStrings, function(str){
+            buckets[str] = 0;
+        });
+        console.log(buckets);
+        
+        Ext.Object.each(artifacts, function(key, artifact){
+            if (artifact[artifactProperty]){
+                var date = Rally.util.DateTime.fromIsoString(artifact[artifactProperty]);
+                var bucket = Rally.util.DateTime.format(date,dateFormat);
+                if (Ext.Array.contains(bucketedDateStrings,bucket)){
+                    buckets[bucket]++;
+                }
+            }
+        });
+        
+        return buckets;  
+    },
+    aggregateBlockedTimelines: function(snaps_by_oid){
+        var export_data = [];  
+        var reason_data = {};  
+       
+        //Assumption is that these snaps are still sorted by _ValidFrom in ascending order for each oid
+        var block_action = {};  
+        
+        Ext.Object.each(snaps_by_oid, function(oid, snaps){
+            var last_blocked_date = null;
+            var blocked_actions = [];  
+            var formatted_id = snaps[0].get('FormattedID');
+
+            Ext.each(snaps, function(snap){
+                var name = snap.get('Name');
+                var reason = snap.get('BlockedReason') || null;
+                var previous_reason = snap.get('_PreviousValues.BlockedReason') || null;
+                var blocked = snap.get('Blocked');
+                var was_blocked = snap.get('_PreviousValues.Blocked');
+                var date = Rally.util.DateTime.fromIsoString(snap.get('_ValidFrom'));
+
+                var rec = {FormattedID: formatted_id, BlockedDate: null, UnblockedDate: null, BlockedReason: null};
+                if (blocked === true && was_blocked === false){
+                    //Transition to blocked
+                    last_blocked_date = date;
+                    rec.BlockedDate = last_blocked_date;
+                    rec.BlockedReason = reason;  
+                    rec.Name = name; 
+                    blocked_actions.push(rec);
+                }
+                
+                if (was_blocked === true && blocked === false){
+                    //Transition from blocked 
+                    var rec_found = false; 
+                    var idx=-1; 
+                    for (var i=0; i<blocked_actions.length; i++){
+                        if (blocked_actions[i].BlockedDate == last_blocked_date){
+                            idx = i;  
+                        }
+                    }
+
+                    if (idx<0){
+                        idx = blocked_actions.length; 
+                        blocked_actions.push(rec);  
+                    }
+                    blocked_actions[idx].Name = name;  
+                    blocked_actions[idx].UnblockedDate = date;  
+                    blocked_actions[idx].BlockedReason = previous_reason;  
+                    last_blocked_date = null; 
+                }
+            });
+            block_action[formatted_id] = blocked_actions;
+        });
+        return block_action         
+    },
+//    getDateBucketsForArtifacts: function(artifacts, artifactProperties, dateInterval, dateFormat){
+//        var earliest_date = new Date();
+//        var latest_date = Rally.util.DateTime.add(earliest_date,"year",-20);
+//        
+//        Ext.Object.each(artifacts,function(key,artifact){
+//            Ext.each(artifactProperties, function(prop){
+//                if (artifact[prop]){
+//                    var date = Rally.util.DateTime.fromIsoString(artifact[prop]);
+//                    if (date < earliest_date){
+//                        earliest_date = date; 
+//                    }
+//                    if (date > latest_date){
+//                        latest_date = date;
+//                    }                
+//                }
+//            })
+//        });
+//        
+//        var buckets = [];
+//        var date = earliest_date; 
+//        while (date < latest_date && earliest_date < latest_date){
+//            var bucket = Rally.util.DateTime.format(date,dateFormat);
+//            console.log(date, bucket);
+//            if (!Ext.Array.contains(buckets, bucket)){
+//                buckets.push(bucket);
+//            }
+//            date = Rally.util.DateTime.add(date,dateInterval,1);
+//        }
+//        return buckets;
+//    },
+//    getStatistics: function(artifacts){
+//        //Mean, Min, Max, Totals
+//        var reasons = this.getUniquePropertyValues(artifacts,"blockedReason");
+//        var daysToResolution = {};  
+//        Ext.each(reasons, function(reason){
+//            daysToResolution[reason] = [];
+//        });
+//        
+//        Ext.Object.each(artifacts, function(key,artifact){
+//            if (artifact.blockedReason && artifact.unblockedDate){
+//                daysToResolution[artifact.blockedReason].push(artifact.getDaysToResolution());
+//            }
+//        },this);
+//        
+//        var data = [];
+//        var total = 0;
+//        Ext.Object.each(daysToResolution, function(key,val){
+//            total += val.length;
+//            data.push({reason: key, mean: Ext.Array.mean(val), min: Ext.Array.min(val), max: Ext.Array.max(val), total: val.length});
+//        });
+//        
+//        var all = _.flatten(_.values(daysToResolution));
+//        data.push({reason: 'All', mean: Ext.Array.mean(all), min: Ext.Array.min(all), max: Ext.Array.max(all), total: total});
+//        return data;
+//    },
+//    getUniquePropertyValues: function(artifacts, property, transformFn){
+//        
+//        var unique_values = [];  
+//        console.log(transformFn);
+//        if (transformFn == undefined){
+//            transformFn = function(val){return val;}
+//        }
+//        console.log('fn',transformFn);
+//        Ext.Object.each(artifacts, function(key,artifact){
+//            console.log(artifact, artifact[property]);
+//            if (artifact[property]){
+//                var val = transformFn(artifact[property]);
+//                console.log('val',val,Ext.Array.contains(unique_values, val));
+//                if (!Ext.Array.contains(unique_values, val)){
+//                    unique_values.push(val);
+//                }
+//            }
+//        });
+//        return unique_values.sort(); 
+//    }
+});
+    Ext.define('Rally.technicalservices.DataExportDialog', {
+        extend: 'Rally.ui.dialog.Dialog',
+        logger: new Rally.technicalservices.Logger(),
+        width: 700,
+        autoShow: true,
+        title: 'Data Dialog',
+
+        constructor: function(config){
+            Ext.apply(this,config);
+            
+            this.title = this.title;
+            this.items = this._initializeItems();
+            this.logger.log('Data dialog constructor', this.title, this.items);
+            
+            this.callParent(arguments);
+       },
+       _initializeItems: function(){
+           var items = [];
+           this.logger.log('_initializeItems', this.data);
+           items.push(this._buildGrid());
+           items.push({xtype:'container',itemId: 'button-container', items: [{
+                    xtype     : 'rallybutton',
+                    text      : 'Export',
+                    scope: this,
+                    handler      : this._export
+                },{
+                    xtype     : 'rallybutton',
+                    text      : 'Close',
+                    scope: this,
+                    handler      : this._close
+                }]});
+           return items;
+      },
+      _buildGrid: function(){
+          this.logger.log('_buildGrid');
+          
+          var store = Ext.create('Rally.data.custom.Store', {
+              data: this.data,
+              pageSize: 10
+          });
+          
+          return {
+              xtype:'rallygrid',
+              store: store,
+              columnCfgs: this._getColumnCfgs(this.data)
+          };
+      },
+      _getColumnCfgs: function(data){
+          var headers = Ext.Object.getKeys(data[0]);
+          var column_cfgs = [];
+          Ext.each(headers, function(header){
+              column_cfgs.push({flex: 1, text: header, dataIndex: header});
+          });
+          return column_cfgs;  
+      },
+      _export: function(){
+          var file_name = "export.csv";
+          var data_hash = {};
+          Ext.each(Ext.Object.getKeys(this.data[0]), function(key){
+              data_hash[key] = key;
+          });
+          this.logger.log('_export',data_hash, this.data);
+          
+          var export_text = Rally.technicalservices.FileUtilities.convertDataArrayToCSVText(this.data, data_hash);
+          Rally.technicalservices.FileUtilities.saveTextAsFile(export_text,file_name);
+      },
+      _close: function(){
+          this.destroy();
+      }
+    });
+Ext.define('Rally.technicalservices.FileUtilities', {
+    singleton: true,
+    logger: new Rally.technicalservices.Logger(),
+    
+    saveTextAsFile: function(textToWrite, fileName)
+    {
+        var textFileAsBlob = new Blob([textToWrite], {type:'text/plain'});
+        var fileNameToSaveAs = fileName;
+
+        var downloadLink = document.createElement("a");
+        downloadLink.download = fileNameToSaveAs;
+        downloadLink.innerHTML = "Download File";
+        if (window.webkitURL != null)
+        {
+            // Chrome allows the link to be clicked
+            // without actually adding it to the DOM.
+            downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+        }
+        else
+        {
+            // Firefox requires the link to be added to the DOM
+            // before it can be clicked.
+            downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+            downloadLink.onclick = destroyClickedElement;
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+        }
+        downloadLink.click();
+    },
+    destroyClickedElement: function(event)
+    {
+        document.body.removeChild(event.target);
+    },
+    convertDataArrayToCSVText: function(data_array, requestedFieldHash){
+       
+        var text = '';
+        Ext.each(Object.keys(requestedFieldHash), function(key){
+            text += requestedFieldHash[key] + ',';
+        });
+        text = text.replace(/,$/,'\n');
+        
+        Ext.each(data_array, function(d){
+            Ext.each(Object.keys(requestedFieldHash), function(key){
+                if (d[key]){
+                    if (typeof d[key] === 'object'){
+                        if (d[key].FormattedID) {
+                            text += Ext.String.format("\"{0}\",",d[key].FormattedID ); 
+                        } else if (d[key].Name) {
+                            text += Ext.String.format("\"{0}\",",d[key].Name );                    
+                        } else if (!isNaN(Date.parse(d[key]))){
+                            text += Ext.String.format("\"{0}\",",Rally.util.DateTime.formatWithDefaultDateTime(d[key]));
+                        }else {
+                            text += Ext.String.format("\"{0}\",",d[key].toString());
+                        }
+                    } else {
+                        text += Ext.String.format("\"{0}\",",d[key] );                    
+                    }
+                } else {
+                    text += ',';
+                }
+            },this);
+            text = text.replace(/,$/,'\n');
+        },this);
+        return text;
+    }
+});
+Ext.override(Rally.ui.chart.Chart,{
+    _loadStore: function (storeConfig, storeRank) {
+
+        var self = this;
+
+        Ext.merge(storeConfig, {
+            exceptionHandler: function (proxy, response, operation) {
+                console.log(proxy,response,operation);
+                if (response.status !== 200) {
+                    self.queryValid = false;
+                }
+                if (response.status === 409) {
+                    self.workspaceHalted = true;
+                } else if (response.status === 503) {
+                    self.serviceUnavailable = true;
+                }
+            }
+        });
+
+        storeConfig.limit = storeConfig.limit || Infinity;
+
+        var store = Ext.create(this.storeType, storeConfig);
+        store.rank = storeRank;
+
+        store.on('load', this._storeLoadHandler, this);
+        store.load({params: { removeUnauthorizedSnapshots: true } });
+    }
+});
+
+    Ext.define('Rally.technicalservices.calculator.StateTouchCalculator', {
+        extend: 'Rally.data.lookback.calculator.BaseCalculator',
+
+        config: {
+            startDate: null,
+            endDate: null,
+            dateFormat: "F",
+            granularity: "month"
+        },
+
+        /**
+         * Calculate extra chart fields that are derived based on the data retrieved by the store. This is passed
+         * to the Lumenize {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the
+         * configuration. For example, if you want to calculate the number of completed stories, you would simply return
+         * if the story is in a completed schedule state or not:
+         *   return [{
+         *       "as": "CompletedStoryCount",
+         *       "f": function(snapshot) {
+         *           var ss = snapshot.ScheduleState;
+         *           if (ss === "Accepted" || ss === "Released") {
+         *               return 1;
+         *           }
+         *           else {
+         *               return 0;
+         *           }
+         *       }
+         *   }];
+         *
+         * You can use these derived fields as part of the calculator metrics calculation.
+         *
+         * Object properties:
+         *
+         *   - The `as` property is the name the field is saved as for future reference
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `snapshot` as
+         *   an argument
+         *
+         * @return {Array} a list of derived fields objects
+         */
+        getDerivedFieldsOnInput: function () {
+            return [];
+        },
+
+        /**
+         * Calculate the metrics that are displayed on the chart from the data retrieved by the store. This is passed
+         * to the Lumenize {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the
+         * configuration. Metrics calculations can use fields that are derived using the #getDerivedFieldsOnInput
+         * function. For example, if I derived a CompletedStoryCount field, I can display that field as a bar chart by
+         * specifying:
+         *   return [{
+         *      "field": "CompletedStoryCount",
+         *      "as": "Completed Stories",
+         *      "f": "sum",
+         *      "display": "column"
+         *   }];
+         *
+         * The field is displayed in the chart as "Completed Stories" with each bar being a sum of that days completed
+         * stories.
+         *
+         * Object properties:
+         *
+         *   - The `field` property is the field name to use to calculate the metric. This can be a field from the data
+         *   or a derived field.
+         *   - The `as` property is the name displayed to the user in the chart
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `snapshot` as
+         *   an argument
+         *   - The `display` property is used by the chart to determine how to display the data on a chart. Can be any
+         *   Highcharts specific type, e.g., "line" or "column"
+         *
+         * @return {Array} a list of metric objects
+         */
+        getMetrics: function () {
+            return [];
+        },
+
+        /**
+         * Calculate summary metrics based on the data retrieved from the store. This is passed to the Lumenize
+         * {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator TimeSeriesCalculator} as part of the configuration.
+         * Each summary metric also has access to any previously defined metrics or derived fields. This function is
+         * useful to generate data that you do not necessarily want to render on the chart, but would like to use to get
+         * more derived fields after the main chart metrics are defined. For example, if you wanted the max numbers for
+         * different fields, you would specify:
+         *      return [
+         *          { "field": "TaskUnitScope", "f": "max" },
+         *          { "field": "TaskUnitBurnDown", "f": "max" },
+         *      ];
+         *
+         * The fields would then be available to the objects in #getDerivedFieldsAfterSummary. Note that the fields in
+         * this case will need to be referenced by `TaskUnitScope_max` due to the use of the built-in `max` function. If
+         * you wish to specify your own function, you must use the `as` property in order to reference the field in the
+         * future. For example,
+         *      return [{
+         *          "as": "TaskUnitBurnDown_max_index",
+         *          "f": function(seriesData, metrics) {
+         *              var i, length = seriesData.length;
+         *              for(i = 0; i < length; i++) {
+         *                  var data = seriesData[i];
+         *                  if(data.TaskUnitBurnDown == metrics.TaskUnitBurnDown_max) {
+         *                      return i;
+         *                  }
+         *              }
+         *          }
+         *      }];
+         *
+         * Object properties:
+         *
+         *   - The `field` property is the name of the field to use to calculate the new summary metric. This field
+         *   can be from the data or from a previously derived field.
+         *   - The `as` property is only used when you supply a custom function to calculate the summary metric. It is
+         *   the name for future reference of the field.
+         *   - The `f` property can be a built in Lumenize function string or a custom function that takes `seriesData`
+         *   and `metrics` as arguments. This is used in conjunction with the `as` property.
+         *
+         * @return {Array}
+         */
+        getSummaryMetricsConfig: function () {
+            return [];
+        },
+
+        /**
+         * Calculate extra chart fields to display on the chart using the fields defined in by the summary metrics
+         * configuration. This is passed to the {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator} as
+         * part of the configuration. This function is useful when you want to derive more fields to display on your
+         * chart. For example, if you wanted to calculate an ideal line for a burn chart using the `TaskUnitScope_max`
+         * field, you would specify:
+         *      return [{
+         *          "as": "Ideal",
+         *          "f": function(snapshot, index, metrics, seriesData) {
+         *              var max = metrics.TaskUnitScope_max,
+         *                  increments = seriesData.length - 1,
+         *                  incrementAmount = max / increments;
+         *
+         *              return Math.floor(100 * (max - index * incrementAmount)) / 100;
+         *          },
+         *          "display": "line"
+         *      }];
+         *
+         * This field would be displayed in the chart as an ideal line for the given data.
+         *
+         * Object properties:
+         *
+         *   - The `as` property is the name displayed to the user in the chart
+         *   - The `f` property is a custom function that takes a snapshot, index, chart metrics, and the series data as
+         *   arguments
+         *   - The `display` property is used by the chart to determine how to display the data on a chart. Can be any
+         *   Highcharts specific type, e.g., "line" or "column"
+         *
+         * @return {Array}
+         */
+        getDerivedFieldsAfterSummary: function () {
+            return [];
+        },
+
+        /**
+         * @inheritdoc
+         */
+        runCalculation: function (snapshots) {
+            
+            var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOid(snapshots);
+            
+
+            var date_buckets = Rally.technicalservices.Toolbox.getDateBuckets(this.startDate, this.endDate, this.granularity);
+            var series = this._getSeries(snaps_by_oid,date_buckets,this.granularity);
+            var categories = Rally.technicalservices.Toolbox.formatDateBuckets(date_buckets, this.dateFormat);  
+            return {categories: categories, series: series};
+        },
+        _getSeries: function(snaps_by_oid, buckets, granularity){
+            
+            var total_counter = _.range(buckets.length).map(function () { return 0 }),
+                blocked_counter =_.range(buckets.length).map(function () { return 0 });
+            var export_data = []; 
+            
+            Ext.Object.each(snaps_by_oid, function(oid, snaps){
+                var oid_end_date = null, oid_start_date = null,
+                    oid_blocked_end_date = null, oid_blocked_start_date = null,
+                    oid_blocked = false, reason = null, fid = null, name = null; 
+                
+                Ext.each(snaps, function(snap){
+                    reason = snap.BlockedReason;  
+                    name = snap.Name;
+                    fid = snap.FormattedID;  
+                    
+                    var snap_from_date = Rally.util.DateTime.fromIsoString(snap._ValidFrom);
+                    if (oid_start_date == null ||  snap_from_date < oid_start_date){
+                        oid_start_date = snap_from_date;
+                    }
+                    var snap_to_date = Rally.util.DateTime.fromIsoString(snap._ValidTo);
+                    if (oid_end_date == null || oid_end_date < snap_to_date){
+                        oid_end_date = snap_to_date;
+                    }
+                    
+                    if (snap.Blocked){
+                        oid_blocked = true; 
+                        if (oid_blocked_start_date == null || oid_blocked_start_date > snap_from_date){
+                            oid_blocked_start_date = snap_from_date;
+                        }
+                        if (oid_blocked_end_date == null || oid_blocked_end_date < snap_to_date){
+                            oid_blocked_end_date = snap_to_date;  
+                        }
+                    }
+                });
+                var data = {FormattedID: fid, Name: name, Blocked: oid_blocked, BlockedDate: oid_blocked_start_date, UnblockedDate: oid_blocked_end_date};
+                for (var i=0; i<buckets.length; i++){
+                    data[Rally.util.DateTime.format(buckets[i],this.dateFormat)] = 0;
+                    if (oid_end_date >= buckets[i] && oid_start_date < Rally.util.DateTime.add(buckets[i],granularity,1)){
+                        total_counter[i]++;
+                    }
+                    if (oid_blocked){
+                      if (oid_blocked_start_date < Rally.util.DateTime.add(buckets[i],granularity,1) && oid_blocked_end_date >= buckets[i]){
+                            data[Rally.util.DateTime.format(buckets[i],this.dateFormat)] = 1;  
+                            blocked_counter[i]++;
+                        }
+                    }
+                }
+                export_data.push(data);
+            },this);
+            
+            var blocked_pct = _.range(buckets.length).map(function () { return 0 }),
+            not_blocked_pct = _.range(buckets.length).map(function () { return 0 });  
+            
+            for(var i=0; i< buckets.length; i++){
+                blocked_pct[i] = Math.round(blocked_counter[i]/total_counter[i] * 100);
+                not_blocked_pct[i] = Math.round((total_counter[i] - blocked_counter[i])/total_counter[i] *100);  
+            }
+            this.data = export_data; 
+            return [{name: '% Not Blocked', data: not_blocked_pct, stack: 1},
+                    {name: '% Blocked', data: blocked_pct, stack: 1}];
+        },
+        getData: function(){
+            return this.data; 
+        }
+
+    });
+Ext.define('Rally.technicalservices.Toolbox',{
+    singleton: true,
+    getBeginningOfMonthAsDate: function(dateInMonth){
+        var year = dateInMonth.getFullYear();
+        var month = dateInMonth.getMonth();
+        return new Date(year,month,1,0,0,0,0);
+    },
+    getEndOfMonthAsDate: function(dateInMonth){
+        var year = dateInMonth.getFullYear();
+        var month = dateInMonth.getMonth();
+        var day = new Date(year, month+1,0).getDate();
+        return new Date(year,month,day,0,0,0,0);
+    },
+    aggregateSnapsByOid: function(snaps){
+        //Return a hash of objects (key=ObjectID) with all snapshots for the object
+        var snaps_by_oid = {};
+        Ext.each(snaps, function(snap){
+            var oid = snap.ObjectID || snap.get('ObjectID');
+            if (snaps_by_oid[oid] == undefined){
+                snaps_by_oid[oid] = [];
+            }
+            snaps_by_oid[oid].push(snap);
+            
+        });
+        return snaps_by_oid;
+    },
+    getDateBuckets: function(startDate, endDate, granularity){
+
+        var bucketStartDate = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(startDate);
+        var bucketEndDate = Rally.technicalservices.Toolbox.getEndOfMonthAsDate(endDate);
+       
+        var date = bucketStartDate;
+        
+        var buckets = []; 
+        while (date<bucketEndDate && bucketStartDate < bucketEndDate){
+            buckets.push(date);
+            date = Rally.util.DateTime.add(date,granularity,1);
+        }
+        return buckets;  
+    },
+    formatDateBuckets: function(buckets, dateFormat){
+            var categories = [];
+            Ext.each(buckets, function(bucket){
+                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
+            });
+            categories[categories.length-1] += "*"; 
+            return categories; 
+    },
+
+
+});
+Ext.define('CustomApp', {
+    extend: 'Rally.app.App',
+    componentCls: 'app',
+    logger: new Rally.technicalservices.Logger(),
+    items: [
+        {xtype:'container',itemId:'selection_box', layout: {type: 'hbox'}, padding: 10},
+        {xtype:'container',itemId:'display_box'},
+        {xtype:'tsinfolink'}
+    ],
+    pickerOptions: [
+                    {name: 'Last Complete Month', value: -1},
+                    {name: 'Last 2 Complete Months', value: -2},
+                    {name: 'Last 3 Complete Months', value: -3},
+                    {name: 'Last 6 Complete Months', value: -6},
+                    {name: 'Last 12 Complete Months', value: -12}
+                ],
+    defaultPickerOption: 'Last 3 Complete Months',
+    /**
+     * Store Config
+     */
+    types: ['HierarchicalRequirement','Defect','Task'],
+    hydrate: ['_TypeHierarchy'],
+    fetch: ['FormattedID', 'Name', 'Blocked','BlockedReason','_TypeHierarchy','_PreviousValues.BlockedReason','_PreviousValues.Blocked'], 
+
+    launch: function() {
+        this._initialize();
+    },
+    _initialize: function(){
+        var store = Ext.create('Ext.data.Store',{
+            fields: ['name','value'],
+            data: this.pickerOptions
+        });
+        
+        var cb = this.down('#selection_box').add({
+            xtype: 'combobox',
+            store: store,
+            queryMode: 'local',
+            fieldLabel: 'Show data from',
+            labelAlign: 'right',
+            displayField: 'name',
+            valueField: 'value',
+            value: -3,
+            minWidth: 300,
+            listeners: {
+                scope: this,
+                select: this._fetchData  
+            }
+        });
+        this.down('#selection_box').add({
+            xtype: 'rallybutton',
+            itemId: 'btn-export',
+            text: 'Export',
+            margin: '0 0 0 10',
+            scope: this, 
+            handler: this._exportData
+        });
+        this._fetchData(cb);
+    },    
+    _fetchData: function(cb){
+        var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
+        var project = this.getContext().getProject().ObjectID;  
+        
+        Ext.create('Rally.data.lookback.SnapshotStore', {
+            autoLoad: true,
+            listeners: {
+                scope: this, 
+                load: function(store, data, success){ 
+                    var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOid(data);
+                    var processed_data = this._processData(snaps_by_oid)
+;                   var statistics_data = this._calculateStatistics(processed_data);
+                    this._buildGrid(statistics_data);
+                }
+            },
+            hydrate: this.hydrate,
+            fetch: this.fetch,
+            compress: true, 
+            find: {
+               $or: [
+                     {"BlockedReason": {$exists: true}},
+                     {"_PreviousValues.BlockedReason": {$exists: true}}
+               ],
+               $or: [
+                     {"_ValidFrom": {$gte: start_date}},
+                     {"__At": start_date}
+                ]
+            },
+            filters: [
+                {
+                    property: '_TypeHierarchy',
+                    operator: 'in',
+                    value: this.types
+                },{
+                    property: '_ProjectHierarchy',
+                    operator: 'in',
+                    value: [project]
+                }
+            ],
+            sort: "_ValidFrom",
+            compress: true 
+        });
+
+    },
+    _processData: function(snaps_by_oid){
+        var blocked_data = Rally.technicalservices.BlockedToolbox.aggregateBlockedTimelines(snaps_by_oid);
+        this.logger.log('_processData', blocked_data);
+        
+        var export_data = [];  
+        var reason_data = {};  
+        this.logger.log('_processData',blocked_data);
+        Ext.Object.each(blocked_data, function(formatted_id, blocks){
+            Ext.each(blocks, function(block){
+                export_data.push(block);
+                if (block.BlockedReason && block.BlockedReason.length > 0 && block.BlockedDate && block.UnblockedDate){
+                    if (reason_data[block.BlockedReason] == undefined){
+                        reason_data[block.BlockedReason] = [];
+                    }
+                    var daysToResolution = Rally.util.DateTime.getDifference(block.UnblockedDate, block.BlockedDate,"day");
+                    reason_data[block.BlockedReason].push(daysToResolution);
+                }
+            });
+        });
+        this.exportData = export_data; 
+        return reason_data; 
+    },
+    _calculateStatistics: function(processed_data){
+        //Mean, Min, Max, Totals
+        var data = [];
+        var total = 0;
+        Ext.Object.each(processed_data, function(key,val){
+            total += val.length;
+            data.push({reason: key, mean: Ext.Array.mean(val), min: Ext.Array.min(val), max: Ext.Array.max(val), total: val.length});
+        });
+        
+        var all = _.flatten(_.values(processed_data));
+        data.push({reason: 'All', mean: Ext.Array.mean(all), min: Ext.Array.min(all), max: Ext.Array.max(all), total: total});
+        return data;        
+    }, 
+   _exportData: function(){
+       var file_name = "export.csv";
+       var data_hash = {};
+       Ext.each(Ext.Object.getKeys(this.exportData[0]), function(key){
+           data_hash[key] = key;
+       });
+       this.logger.log('_export',data_hash, this.exportData);
+       
+       var export_text = Rally.technicalservices.FileUtilities.convertDataArrayToCSVText(this.exportData, data_hash);
+       Rally.technicalservices.FileUtilities.saveTextAsFile(export_text,file_name);
+   },
+   _buildGrid: function(data){
+       
+       this.down('#display_box').removeAll();
+       
+       var store = Ext.create('Rally.data.custom.Store',{
+           data: data
+       });
+       
+       var columnCfgs = [];
+       Ext.each(_.keys(data[0]), function(key){
+           columnCfgs.push({text: key, dataIndex: key});
+       });
+       columnCfgs[0]['flex'] = 1;  
+       
+       this.down('#display_box').add({
+           xtype: 'rallygrid',
+           store: store,
+           columnCfgs: columnCfgs
+       });
+   }
+});
+            
+               Rally.launchApp('CustomApp', {
+                   name: 'Blocker Resolution Time'
+               });
+        });
+    </script>
+    
+    <style type="text/css">
+
+.app {
+}
+.tsinfolink {
+    position:absolute;
+    right:0px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    text-align: center;
+    color: white;
+    background: #C0C0C0;
+    border-style: solid;
+    border-width: 1px;
+    margin-top: 25px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+    </style>
+
+</head>
+<body></body>
+</html>
