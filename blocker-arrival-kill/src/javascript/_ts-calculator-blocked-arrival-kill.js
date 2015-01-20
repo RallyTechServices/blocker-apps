@@ -174,10 +174,12 @@
             var data = [];
             Ext.Object.each(snaps_by_oid, function(oid, snaps){
                 var last_blocked_time = null; 
-                var data_record = {ObjectId: oid, FormattedId: null, BlockedDate: null, UnblockedDate: null};
+                var data_record = {FormattedId: null, Name: null, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
                 Ext.each(snaps, function(snap){
                     var formatted_id = snap.FormattedID;  
                     data_record['FormattedId']=formatted_id;
+                    data_record['Name']=snap.Name; 
+                    
                     var is_blocked = snap.Blocked;
                     var was_blocked = is_blocked;  
                     if (snap._PreviousValues && (snap._PreviousValues.Blocked != undefined)){
@@ -203,6 +205,9 @@
                             }
                         }
                         data_record['UnblockedDate'] = date; 
+                        data_record['BlockedReason'] = snap._PreviousValues.BlockedReason; 
+                        data.push(data_record);  //We push this here so that we can start a new one.  
+                        data_record = {FormattedId: formatted_id, Name: snap.Name, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
                         last_blocked_time = null;  
                     } 
                     
@@ -216,11 +221,12 @@
                                 blocked_buckets[i]++; 
                             }
                         }
-                        data_record['BlockedDate']=last_blocked_time;
+                        data_record['BlockedReason'] = snap.BlockedReason; 
+                        data_record['BlockedDate'] = last_blocked_time;
                         last_blocked_time = null;  
                     }
                 },this);
-                if (data_record.UnblockedDate != null || data_record.BlockedDate != null){
+                if (data_record.BlockedDate != null && data_record.UnblockedDate == null){
                     data.push(data_record);
                 }
             },this);

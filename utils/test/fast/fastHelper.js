@@ -9,37 +9,25 @@ var shiftDayBeginningToEnd = function(day) {
     return Rally.util.DateTime.add(Rally.util.DateTime.add(Rally.util.DateTime.add(day,'hour',23), 'minute',59),'second',59);
 };
 
-Ext.define('mockStory',{
-    extend: 'Ext.data.Model',
-    fields: [
-        {name:'ObjectID', type: 'int'},
-        {name:'Name',type:'string'},
-        {name:'PlanEstimate',type:'int'},
-        {name:'id',type:'int',convert:useObjectID},
-        {name:'ScheduleState',type:'string',defaultValue:'Defined'}
-    ]
-});
+var snapshots = [
+    Ext.create('mockSnapshot', {
+        ObjectID: 1, 
+        FormattedID: 'US1',
+        Name: 'Name of US1',
+        Blocked: true,
+        BlockedReason: 'br',
+        _ValidFrom: '',
+       }),
+   
+   ];
 
-Ext.define('mockIteration',{
-    extend: 'Ext.data.Model',
-    fields: [
-        {name:'ObjectID', type: 'int'},
-        {name:'Name',type:'string'},
-        {name:'StartDate',type:'auto'},
-        {name:'EndDate',type:'auto'},
-        {name:'id',type:'int',convert:useObjectID}
-    ]
-});
-
-Ext.define('mockCFD',{
-    extend: 'Ext.data.Model',
-    fields: [
-        {name:'CardCount',type:'int'},
-        {name:'CardEstimateTotal',type:'int'},
-        {name:'CardState',type:'string'},
-        {name:'CardToDoTotal',type:'int'},
-        {name:'CreationDate',type:'date'},
-        {name:'ObjectID',type:'int'},
-        {name:'TaskEstimateTotal',type:'int'}
-    ]
+Ext.define('mockSnapshot',{
+    ObjectID: 0, 
+    FormattedID: null,
+    Name: null,
+    Blocked: false,
+    BlockedReason: null,
+    _PreviousValues: null,
+    _ValidFrom: null,
+    id: function(){return this.ObjectID}
 });

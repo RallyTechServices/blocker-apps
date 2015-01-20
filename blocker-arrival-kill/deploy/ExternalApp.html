@@ -3,10 +3,10 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Mon Jan 19 2015 12:56:10 GMT-0700 (MST) -->
+    <!--  Build Date: Tue Jan 20 2015 13:43:08 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Jan 19 2015 12:56:10 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Tue Jan 20 2015 13:43:08 GMT-0700 (MST)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -707,6 +707,10 @@ Ext.override(Rally.ui.chart.Chart,{
     });
 Ext.define('Rally.technicalservices.Toolbox',{
     singleton: true,
+    /**
+     * Returns beginnig of month as date for the current time zone
+     * 
+     */
     getBeginningOfMonthAsDate: function(dateInMonth){
         var year = dateInMonth.getFullYear();
         var month = dateInMonth.getMonth();
@@ -932,10 +936,12 @@ Ext.define('Rally.technicalservices.Toolbox',{
             var data = [];
             Ext.Object.each(snaps_by_oid, function(oid, snaps){
                 var last_blocked_time = null; 
-                var data_record = {ObjectId: oid, FormattedId: null, BlockedDate: null, UnblockedDate: null};
+                var data_record = {FormattedId: null, Name: null, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
                 Ext.each(snaps, function(snap){
                     var formatted_id = snap.FormattedID;  
                     data_record['FormattedId']=formatted_id;
+                    data_record['Name']=snap.Name; 
+                    
                     var is_blocked = snap.Blocked;
                     var was_blocked = is_blocked;  
                     if (snap._PreviousValues && (snap._PreviousValues.Blocked != undefined)){
@@ -961,6 +967,9 @@ Ext.define('Rally.technicalservices.Toolbox',{
                             }
                         }
                         data_record['UnblockedDate'] = date; 
+                        data_record['BlockedReason'] = snap._PreviousValues.BlockedReason; 
+                        data.push(data_record);  //We push this here so that we can start a new one.  
+                        data_record = {FormattedId: formatted_id, Name: snap.Name, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
                         last_blocked_time = null;  
                     } 
                     
@@ -974,11 +983,12 @@ Ext.define('Rally.technicalservices.Toolbox',{
                                 blocked_buckets[i]++; 
                             }
                         }
-                        data_record['BlockedDate']=last_blocked_time;
+                        data_record['BlockedReason'] = snap.BlockedReason; 
+                        data_record['BlockedDate'] = last_blocked_time;
                         last_blocked_time = null;  
                     }
                 },this);
-                if (data_record.UnblockedDate != null || data_record.BlockedDate != null){
+                if (data_record.BlockedDate != null && data_record.UnblockedDate == null){
                     data.push(data_record);
                 }
             },this);
@@ -1039,7 +1049,11 @@ Ext.define('CustomApp', {
         {xtype:'container',itemId:'display_box'},
         {xtype:'tsinfolink'}
     ],
-    
+    dateFormat: "F",
+    granularity: "month",
+    hydrate: ['_TypeHierarchy'],
+    types: ['HierarchicalRequirement','Defect','Task'],
+    fetch: ['FormattedID', 'Name', 'Blocked','_PreviousValues.Blocked','BlockedReason','_PreviousValues.BlockedReason','_TypeHierarchy'],
     chartTitle: 'Historical Blocker Status',
     pickerOptions: [
                     {name: 'Last Complete Month', value: -1},
@@ -1095,7 +1109,7 @@ Ext.define('CustomApp', {
             draggable: true,
             modal: true,
             autoShow: true,
-            title: 'Data Dialog 2',
+            title: 'Data for ' + this.chartTitle,
             data: data
         });
     },
@@ -1108,10 +1122,6 @@ Ext.define('CustomApp', {
         var start_date = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(Rally.util.DateTime.add(new Date(), "month",cb.getValue()));
         var project = this.getContext().getProject().ObjectID; 
 
-        var types = ['HierarchicalRequirement','Defect','Task'];
-        var dateFormat = "F";
-        var dateInterval = "month";
-
         this.logger.log('_buildChart', start_date, project);
 
         this.down('#display_box').removeAll(); 
@@ -1121,8 +1131,8 @@ Ext.define('CustomApp', {
             itemId: 'crt',
             loadMask: false,
             storeConfig: {
-                hydrate: ['_TypeHierarchy'],
-                fetch: ['Blocked','_PreviousValues.Blocked','BlockedReason','_PreviousValues.BlockedReason','_TypeHierarchy'],
+                hydrate: this.hydrate,
+                fetch: this.fetch,
                 compress: true, 
                 find: {
                 $or: [
@@ -1132,15 +1142,15 @@ Ext.define('CustomApp', {
                       {"_PreviousValues.Blocked": true}
                 ],
                 "_ValidFrom": {$gt: start_date},
-                "_TypeHierarchy": {$in: types},
+                "_TypeHierarchy": {$in: this.types},
                 "_ProjectHierarchy": {$in: [project]}
                 },
                 sort: {"_ValidFrom": 1} //sort ascending
             },
             calculatorType: 'Rally.technicalservices.calculator.BlockedArrivalKill',
             calculatorConfig: {
-                granularity: "month",
-                dateFormat: "F",
+                granularity: this.granularity,
+                dateFormat: this.dateFormat,
                 startDate: start_date
             },
             chartConfig: {
