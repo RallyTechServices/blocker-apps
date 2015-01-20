@@ -1,5 +1,9 @@
 Ext.define('Rally.technicalservices.Toolbox',{
     singleton: true,
+    /**
+     * Returns beginnig of month as date for the current time zone
+     * 
+     */
     getBeginningOfMonthAsDate: function(dateInMonth){
         var year = dateInMonth.getFullYear();
         var month = dateInMonth.getMonth();

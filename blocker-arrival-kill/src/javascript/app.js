@@ -7,7 +7,11 @@ Ext.define('CustomApp', {
         {xtype:'container',itemId:'display_box'},
         {xtype:'tsinfolink'}
     ],
-    
+    dateFormat: "F",
+    granularity: "month",
+    hydrate: ['_TypeHierarchy'],
+    types: ['HierarchicalRequirement','Defect','Task'],
+    fetch: ['FormattedID', 'Name', 'Blocked','_PreviousValues.Blocked','BlockedReason','_PreviousValues.BlockedReason','_TypeHierarchy'],
     chartTitle: 'Historical Blocker Status',
     pickerOptions: [
                     {name: 'Last Complete Month', value: -1},
@@ -63,7 +67,7 @@ Ext.define('CustomApp', {
             draggable: true,
             modal: true,
             autoShow: true,
-            title: 'Data Dialog 2',
+            title: 'Data for ' + this.chartTitle,
             data: data
         });
     },
@@ -76,10 +80,6 @@ Ext.define('CustomApp', {
         var start_date = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(Rally.util.DateTime.add(new Date(), "month",cb.getValue()));
         var project = this.getContext().getProject().ObjectID; 
 
-        var types = ['HierarchicalRequirement','Defect','Task'];
-        var dateFormat = "F";
-        var dateInterval = "month";
-
         this.logger.log('_buildChart', start_date, project);
 
         this.down('#display_box').removeAll(); 
@@ -89,8 +89,8 @@ Ext.define('CustomApp', {
             itemId: 'crt',
             loadMask: false,
             storeConfig: {
-                hydrate: ['_TypeHierarchy'],
-                fetch: ['Blocked','_PreviousValues.Blocked','BlockedReason','_PreviousValues.BlockedReason','_TypeHierarchy'],
+                hydrate: this.hydrate,
+                fetch: this.fetch,
                 compress: true, 
                 find: {
                 $or: [
@@ -100,15 +100,15 @@ Ext.define('CustomApp', {
                       {"_PreviousValues.Blocked": true}
                 ],
                 "_ValidFrom": {$gt: start_date},
-                "_TypeHierarchy": {$in: types},
+                "_TypeHierarchy": {$in: this.types},
                 "_ProjectHierarchy": {$in: [project]}
                 },
                 sort: {"_ValidFrom": 1} //sort ascending
             },
             calculatorType: 'Rally.technicalservices.calculator.BlockedArrivalKill',
             calculatorConfig: {
-                granularity: "month",
-                dateFormat: "F",
+                granularity: this.granularity,
+                dateFormat: this.dateFormat,
                 startDate: start_date
             },
             chartConfig: {
