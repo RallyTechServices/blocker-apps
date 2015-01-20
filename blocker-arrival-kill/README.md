@@ -13,7 +13,8 @@ month and the number of work items that were unblocked during that month.
 ##The data included in this chart will be the following:  
 
  * Any work items (Tasks, Defects or User Stories) that were changed 
-   ON or AFTER the first of the month indicated by the selected start date
+   ON or AFTER the first of the month indicated by the selected start date through the current date.  
+   Note that the * for the last month indicates that the month may not be complete.  
  * Any work items (Tasks, Defects or User Stories) in the currently selected 
    project or any of its children that the current user has access to.   
  * Only work items that have a BlockedReason are counted towards the new blocker count.  
