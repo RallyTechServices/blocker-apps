@@ -10,7 +10,7 @@ Ext.define('CustomApp', {
     chartTitle: 'Blocker Causes',
     types: ['HierarchicalRequirement','Defect','Task'],
     hydrate: ['_TypeHierarchy'],
-    fetch: ['Blocked','BlockedReason','Blocker','_TypeHierarchy'],
+    fetch: ['FormattedID','Name','Blocked','BlockedReason','_PreviousValues.Blocked','_PreviousValues.BlockedReason','_TypeHierarchy'],
     pickerOptions: [
                     {name: 'Last Complete Month', value: -1},
                     {name: 'Last 2 Complete Months', value: -2},
@@ -83,7 +83,9 @@ Ext.define('CustomApp', {
                 hydrate: this.hydrate,
                 find: {$or: [
                              {"BlockedReason": {$exists: true}},
-                             {"_PreviousValues.BlockedReason": {$exists: true}}
+                             {"_PreviousValues.BlockedReason": {$exists: true}},
+                             {"Blocked": true},
+                             {"_PreviousValues.Blocked": true}
                       ],
                       "_ValidFrom": {$gte: start_date}
                 },
