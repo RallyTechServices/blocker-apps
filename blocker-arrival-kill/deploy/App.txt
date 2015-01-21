@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 08:44:55 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Jan 21 2015 09:47:40 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 08:44:55 GMT-0700 (MST)";
-        var CHECKSUM = 42293649403;
+        var APP_BUILD_DATE = "Wed Jan 21 2015 09:47:40 GMT-0700 (MST)";
+        var CHECKSUM = 42812594919;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -329,7 +329,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
            var items = [];
            this.logger.log('_initializeItems', this.data);
            items.push(this._buildGrid());
-           items.push({xtype:'container',itemId: 'button-container', items: [{
+           items.push({xtype:'container',itemId: 'button-container', layout: {type: 'hbox'}, items: [{
                     xtype     : 'rallybutton',
                     text      : 'Export',
                     scope: this,
@@ -354,6 +354,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
               xtype:'rallygrid',
               store: store,
               columnCfgs: this._getColumnCfgs(this.data),
+              height: this.height - 100,
               pagingToolbarCfg: {
                   pageSizes: [5, 10, 25]
                }
@@ -1042,19 +1043,30 @@ Ext.define('CustomApp', {
     },    
     _viewData: function(){
         this.logger.log('_viewData');
-//        var height = this.height * .90;  
-//        var width = this.width * .90; 
         
         var data = this.down('#crt').calculator.getData();  
-        Ext.create('Rally.technicalservices.DataExportDialog', {
-            draggable: true,
-            modal: true,
-            autoShow: true,
-//            height: height, 
-//            width: width,
-            title: 'Data for ' + this.chartTitle,
-            data: data
-        });
+        var height = this.getHeight() || 500;
+        var width = this.getWidth() || 800;
+        
+        if ( width > 800 ) {
+            width = 800;
+        }
+        if ( height > 550 ) {
+            height = 550;
+        }
+        if ( height < 200 ) {
+            alert("The app panel is not tall enough to allow for defect selection");
+        } else {        
+            Ext.create('Rally.technicalservices.DataExportDialog', {
+                draggable: true,
+                modal: true,
+                width: width,
+                height: height,
+                autoShow: true,
+                title: 'Data for ' + this.chartTitle,
+                data: data
+            });
+        }
     },
     _maskWindow: function(mask){
         this.down('#btn-data').setDisabled(mask);

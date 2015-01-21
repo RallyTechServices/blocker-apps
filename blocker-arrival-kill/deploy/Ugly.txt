@@ -3,10 +3,10 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2013 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 08:44:55 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Jan 21 2015 09:47:40 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 08:44:55 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Wed Jan 21 2015 09:47:40 GMT-0700 (MST)";
         var CHECKSUM = [%= checksum %];
     </script>
     

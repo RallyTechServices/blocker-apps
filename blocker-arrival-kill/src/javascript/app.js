@@ -61,19 +61,30 @@ Ext.define('CustomApp', {
     },    
     _viewData: function(){
         this.logger.log('_viewData');
-//        var height = this.height * .90;  
-//        var width = this.width * .90; 
         
         var data = this.down('#crt').calculator.getData();  
-        Ext.create('Rally.technicalservices.DataExportDialog', {
-            draggable: true,
-            modal: true,
-            autoShow: true,
-//            height: height, 
-//            width: width,
-            title: 'Data for ' + this.chartTitle,
-            data: data
-        });
+        var height = this.getHeight() || 500;
+        var width = this.getWidth() || 800;
+        
+        if ( width > 800 ) {
+            width = 800;
+        }
+        if ( height > 550 ) {
+            height = 550;
+        }
+        if ( height < 200 ) {
+            alert("The app panel is not tall enough to allow for defect selection");
+        } else {        
+            Ext.create('Rally.technicalservices.DataExportDialog', {
+                draggable: true,
+                modal: true,
+                width: width,
+                height: height,
+                autoShow: true,
+                title: 'Data for ' + this.chartTitle,
+                data: data
+            });
+        }
     },
     _maskWindow: function(mask){
         this.down('#btn-data').setDisabled(mask);

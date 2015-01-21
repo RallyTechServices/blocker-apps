@@ -17,7 +17,7 @@
            var items = [];
            this.logger.log('_initializeItems', this.data);
            items.push(this._buildGrid());
-           items.push({xtype:'container',itemId: 'button-container', items: [{
+           items.push({xtype:'container',itemId: 'button-container', layout: {type: 'hbox'}, items: [{
                     xtype     : 'rallybutton',
                     text      : 'Export',
                     scope: this,
@@ -42,6 +42,7 @@
               xtype:'rallygrid',
               store: store,
               columnCfgs: this._getColumnCfgs(this.data),
+              height: this.height - 100,
               pagingToolbarCfg: {
                   pageSizes: [5, 10, 25]
                }
