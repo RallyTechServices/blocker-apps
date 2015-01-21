@@ -21,7 +21,9 @@ days to resolution as well as a total of blockers included in the calculations.
 ## Notes
  * Any work items that are still blocked are not included in the total, average, min and max calculations.
  
- * Block times will be rounded to the nearest integer
+ * Block durations will be rounded up to the nearest day.  If a block duration is less than one minute, it will show as 0.  
+ 
+ * When calculating counts and statistics, reasons are case insensitive.
  
  * If an item was blocked and unblocked within a day, then the total days to resolution for that 
    item will be zero.  

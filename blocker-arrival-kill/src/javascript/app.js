@@ -123,6 +123,9 @@ Ext.define('CustomApp', {
                         min: 0,
                         title: {
                             text: 'Blockers'
+                        },
+                        labels: {
+                            format: '{value, .0f}'
                         }
                     }
              }

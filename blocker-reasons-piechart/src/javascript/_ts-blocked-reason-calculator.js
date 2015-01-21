@@ -173,16 +173,16 @@
             var data = [];  
             Ext.each(blocked_durations, function(duration){
                 if (duration.BlockedReason){
-                    if (counts[duration.BlockedReason] == undefined){
-                        counts[duration.BlockedReason] = 0; 
+                    count_key = Rally.technicalservices.Toolbox.getCaseInsensitiveKey(counts, duration.BlockedReason);
+                    if (counts[count_key] == undefined){
+                        counts[count_key] = 0; 
                     } 
-                    counts[duration.BlockedReason]++; 
+                    counts[count_key]++; 
                 }
                 data.push({FormattedID: duration.FormattedID, Name: duration.Name, BlockedReason: duration.BlockedReason});
             },this);
             return {counts: counts, data: data};  
         },
-
         getData: function(){
             return this.data;  
         }

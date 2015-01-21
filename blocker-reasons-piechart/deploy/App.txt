@@ -3,11 +3,11 @@
 <head>
     <title>Historical Blocker Reasons</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Jan 20 2015 21:14:15 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Jan 21 2015 08:25:15 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Jan 20 2015 21:14:15 GMT-0700 (MST)";
-        var CHECKSUM = 39959229424;
+        var APP_BUILD_DATE = "Wed Jan 21 2015 08:25:15 GMT-0700 (MST)";
+        var CHECKSUM = 40623307358;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -740,6 +740,16 @@ Ext.define('Rally.technicalservices.Toolbox',{
         });
         return snaps_by_oid;
     },
+    getCaseInsensitiveKey: function(obj, inputStr){
+        var new_key = inputStr;
+        Ext.Object.each(obj, function(key, val){
+            if (new_key.toLowerCase() == key.toLowerCase()){
+                new_key = key;  
+            }
+         });
+        return new_key;
+
+    },
     aggregateSnapsByOidForModel: function(snaps){
         //Return a hash of objects (key=ObjectID) with all snapshots for the object
         var snaps_by_oid = {};
@@ -953,16 +963,16 @@ Ext.define('Rally.technicalservices.Toolbox',{
             var data = [];  
             Ext.each(blocked_durations, function(duration){
                 if (duration.BlockedReason){
-                    if (counts[duration.BlockedReason] == undefined){
-                        counts[duration.BlockedReason] = 0; 
+                    count_key = Rally.technicalservices.Toolbox.getCaseInsensitiveKey(counts, duration.BlockedReason);
+                    if (counts[count_key] == undefined){
+                        counts[count_key] = 0; 
                     } 
-                    counts[duration.BlockedReason]++; 
+                    counts[count_key]++; 
                 }
                 data.push({FormattedID: duration.FormattedID, Name: duration.Name, BlockedReason: duration.BlockedReason});
             },this);
             return {counts: counts, data: data};  
         },
-
         getData: function(){
             return this.data;  
         }

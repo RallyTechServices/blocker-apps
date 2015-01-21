@@ -114,11 +114,13 @@ Ext.define('CustomApp', {
         Ext.each(blocked_durations, function(duration){
             export_data.push(duration);
             if (duration.BlockedReason && duration.BlockedReason.length > 0 && duration.BlockedDate && duration.UnblockedDate){
-                if (reason_data[duration.BlockedReason] == undefined){
-                    reason_data[duration.BlockedReason] = [];
+                var key= Rally.technicalservices.Toolbox.getCaseInsensitiveKey(reason_data, duration.BlockedReason);
+                
+                if (reason_data[key] == undefined){
+                    reason_data[key] = [];
                 }
-                var daysToResolution = Rally.util.DateTime.getDifference(duration.UnblockedDate, duration.BlockedDate,"day");
-                reason_data[duration.BlockedReason].push(daysToResolution);
+                var daysToResolution = Math.ceil(Rally.util.DateTime.getDifference(duration.UnblockedDate, duration.BlockedDate,"minute")/1440);
+                 reason_data[key].push(daysToResolution);
             }
         });
         this.exportData = export_data; 
