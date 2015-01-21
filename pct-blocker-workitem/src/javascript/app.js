@@ -81,6 +81,7 @@ Ext.define('CustomApp', {
             },
             storeConfig: {
                 fetch: ['Blocked','BlockedReason','Name','FormattedID'],
+                limit: 'Infinity',
                 find: {$and: [{"ScheduleState":"In-Progress"}, {'_ProjectHierarchy': project},{'_TypeHierarchy': {$in: this.types}},
                       {$or: [{
                           "_ValidFrom": {$gt: Rally.util.DateTime.toIsoString(start_date)}

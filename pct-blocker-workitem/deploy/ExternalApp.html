@@ -3,10 +3,10 @@
 <head>
     <title>Blocker Percentage of WorkItems</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Jan 20 2015 20:36:53 GMT-0700 (MST) -->
+    <!--  Build Date: Tue Jan 20 2015 21:14:45 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Jan 20 2015 20:36:53 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Tue Jan 20 2015 21:14:45 GMT-0700 (MST)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -313,7 +313,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
     Ext.define('Rally.technicalservices.DataExportDialog', {
         extend: 'Rally.ui.dialog.Dialog',
         logger: new Rally.technicalservices.Logger(),
-        width: 700,
+        width: 800,
         autoShow: true,
         title: 'Data Dialog',
 
@@ -861,6 +861,7 @@ Ext.define('CustomApp', {
             },
             storeConfig: {
                 fetch: ['Blocked','BlockedReason','Name','FormattedID'],
+                limit: 'Infinity',
                 find: {$and: [{"ScheduleState":"In-Progress"}, {'_ProjectHierarchy': project},{'_TypeHierarchy': {$in: this.types}},
                       {$or: [{
                           "_ValidFrom": {$gt: Rally.util.DateTime.toIsoString(start_date)}
