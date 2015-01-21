@@ -3,10 +3,10 @@
 <head>
     <title>Historical Blocker Reasons</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 08:25:16 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Jan 21 2015 09:53:21 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 08:25:16 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Wed Jan 21 2015 09:53:21 GMT-0700 (MST)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -313,7 +313,6 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
     Ext.define('Rally.technicalservices.DataExportDialog', {
         extend: 'Rally.ui.dialog.Dialog',
         logger: new Rally.technicalservices.Logger(),
-        width: 800,
         autoShow: true,
         title: 'Data Dialog',
 
@@ -330,7 +329,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
            var items = [];
            this.logger.log('_initializeItems', this.data);
            items.push(this._buildGrid());
-           items.push({xtype:'container',itemId: 'button-container', items: [{
+           items.push({xtype:'container',itemId: 'button-container', layout: {type: 'hbox'}, items: [{
                     xtype     : 'rallybutton',
                     text      : 'Export',
                     scope: this,
@@ -355,6 +354,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
               xtype:'rallygrid',
               store: store,
               columnCfgs: this._getColumnCfgs(this.data),
+              height: this.height - 100,
               pagingToolbarCfg: {
                   pageSizes: [5, 10, 25]
                }
@@ -1036,13 +1036,28 @@ Ext.define('CustomApp', {
         this.logger.log('_viewData');
         
         var data = this.down('#crt').calculator.getData();  
-        Ext.create('Rally.technicalservices.DataExportDialog', {
-            draggable: true,
-            modal: true,
-            autoShow: true,
-            title: 'Data for ' + this.chartTitle,
-            data: data
-        });
+        var height = this.getHeight() || 500;
+        var width = this.getWidth() || 800;
+        
+        if ( width > 800 ) {
+            width = 800;
+        }
+        if ( height > 550 ) {
+            height = 550;
+        }
+        if ( height < 200 ) {
+            alert("The app panel is not tall enough to allow for displaying data.");
+        } else {        
+            Ext.create('Rally.technicalservices.DataExportDialog', {
+                draggable: true,
+                modal: true,
+                width: width,
+                height: height,
+                autoShow: true,
+                title: 'Data for ' + this.chartTitle,
+                data: data
+            });
+        }
     },
     _buildChart: function(cb){
         var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());

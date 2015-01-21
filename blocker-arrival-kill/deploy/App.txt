@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 09:47:40 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Jan 21 2015 09:53:02 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 09:47:40 GMT-0700 (MST)";
-        var CHECKSUM = 42812594919;
+        var APP_BUILD_DATE = "Wed Jan 21 2015 09:53:02 GMT-0700 (MST)";
+        var CHECKSUM = 42811119128;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -1055,7 +1055,7 @@ Ext.define('CustomApp', {
             height = 550;
         }
         if ( height < 200 ) {
-            alert("The app panel is not tall enough to allow for defect selection");
+            alert("The app panel is not tall enough to allow for displaying data.");
         } else {        
             Ext.create('Rally.technicalservices.DataExportDialog', {
                 draggable: true,

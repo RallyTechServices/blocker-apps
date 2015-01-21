@@ -73,7 +73,7 @@ Ext.define('CustomApp', {
             height = 550;
         }
         if ( height < 200 ) {
-            alert("The app panel is not tall enough to allow for defect selection");
+            alert("The app panel is not tall enough to allow for displaying data.");
         } else {        
             Ext.create('Rally.technicalservices.DataExportDialog', {
                 draggable: true,
