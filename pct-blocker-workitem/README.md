@@ -2,6 +2,7 @@
 
 An app that shows the percent of distinct work items (User Stories or Defects) 
 blocked during the month versus work items never blocked during the month.  
+[Get the code...](https://raw.githubusercontent.com/RallyTechServices/blocker-apps/master/pct-blocker-workitem/deploy/App.txt)
 
 ![ScreenShot](/images/pct-blocker-workitem.png)
 
