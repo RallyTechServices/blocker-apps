@@ -61,12 +61,16 @@ Ext.define('CustomApp', {
     },    
     _viewData: function(){
         this.logger.log('_viewData');
+//        var height = this.height * .90;  
+//        var width = this.width * .90; 
         
         var data = this.down('#crt').calculator.getData();  
         Ext.create('Rally.technicalservices.DataExportDialog', {
             draggable: true,
             modal: true,
             autoShow: true,
+//            height: height, 
+//            width: width,
             title: 'Data for ' + this.chartTitle,
             data: data
         });
@@ -125,7 +129,7 @@ Ext.define('CustomApp', {
                             text: 'Blockers'
                         },
                         labels: {
-                            format: '{value, .0f}'
+                            format: '{value:.0f}'
                         }
                     }
              }
