@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Resolution Time</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Jan 20 2015 21:15:15 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Jan 21 2015 09:53:44 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Jan 20 2015 21:15:15 GMT-0700 (MST)";
-        var CHECKSUM = 29024793672;
+        var APP_BUILD_DATE = "Wed Jan 21 2015 09:53:44 GMT-0700 (MST)";
+        var CHECKSUM = 29666101566;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -313,7 +313,6 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
     Ext.define('Rally.technicalservices.DataExportDialog', {
         extend: 'Rally.ui.dialog.Dialog',
         logger: new Rally.technicalservices.Logger(),
-        width: 800,
         autoShow: true,
         title: 'Data Dialog',
 
@@ -330,7 +329,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
            var items = [];
            this.logger.log('_initializeItems', this.data);
            items.push(this._buildGrid());
-           items.push({xtype:'container',itemId: 'button-container', items: [{
+           items.push({xtype:'container',itemId: 'button-container', layout: {type: 'hbox'}, items: [{
                     xtype     : 'rallybutton',
                     text      : 'Export',
                     scope: this,
@@ -355,6 +354,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
               xtype:'rallygrid',
               store: store,
               columnCfgs: this._getColumnCfgs(this.data),
+              height: this.height - 100,
               pagingToolbarCfg: {
                   pageSizes: [5, 10, 25]
                }
@@ -740,6 +740,16 @@ Ext.define('Rally.technicalservices.Toolbox',{
         });
         return snaps_by_oid;
     },
+    getCaseInsensitiveKey: function(obj, inputStr){
+        var new_key = inputStr;
+        Ext.Object.each(obj, function(key, val){
+            if (new_key.toLowerCase() == key.toLowerCase()){
+                new_key = key;  
+            }
+         });
+        return new_key;
+
+    },
     aggregateSnapsByOidForModel: function(snaps){
         //Return a hash of objects (key=ObjectID) with all snapshots for the object
         var snaps_by_oid = {};
@@ -894,11 +904,13 @@ Ext.define('CustomApp', {
         Ext.each(blocked_durations, function(duration){
             export_data.push(duration);
             if (duration.BlockedReason && duration.BlockedReason.length > 0 && duration.BlockedDate && duration.UnblockedDate){
-                if (reason_data[duration.BlockedReason] == undefined){
-                    reason_data[duration.BlockedReason] = [];
+                var key= Rally.technicalservices.Toolbox.getCaseInsensitiveKey(reason_data, duration.BlockedReason);
+                
+                if (reason_data[key] == undefined){
+                    reason_data[key] = [];
                 }
-                var daysToResolution = Rally.util.DateTime.getDifference(duration.UnblockedDate, duration.BlockedDate,"day");
-                reason_data[duration.BlockedReason].push(daysToResolution);
+                var daysToResolution = Math.ceil(Rally.util.DateTime.getDifference(duration.UnblockedDate, duration.BlockedDate,"minute")/1440);
+                 reason_data[key].push(daysToResolution);
             }
         });
         this.exportData = export_data; 

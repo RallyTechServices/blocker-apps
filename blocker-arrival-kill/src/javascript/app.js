@@ -63,13 +63,28 @@ Ext.define('CustomApp', {
         this.logger.log('_viewData');
         
         var data = this.down('#crt').calculator.getData();  
-        Ext.create('Rally.technicalservices.DataExportDialog', {
-            draggable: true,
-            modal: true,
-            autoShow: true,
-            title: 'Data for ' + this.chartTitle,
-            data: data
-        });
+        var height = this.getHeight() || 500;
+        var width = this.getWidth() || 800;
+        
+        if ( width > 800 ) {
+            width = 800;
+        }
+        if ( height > 550 ) {
+            height = 550;
+        }
+        if ( height < 200 ) {
+            alert("The app panel is not tall enough to allow for displaying data.");
+        } else {        
+            Ext.create('Rally.technicalservices.DataExportDialog', {
+                draggable: true,
+                modal: true,
+                width: width,
+                height: height,
+                autoShow: true,
+                title: 'Data for ' + this.chartTitle,
+                data: data
+            });
+        }
     },
     _maskWindow: function(mask){
         this.down('#btn-data').setDisabled(mask);
@@ -123,6 +138,9 @@ Ext.define('CustomApp', {
                         min: 0,
                         title: {
                             text: 'Blockers'
+                        },
+                        labels: {
+                            format: '{value:.0f}'
                         }
                     }
              }

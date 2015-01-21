@@ -23,6 +23,7 @@ the selected date range.
    only one that will be captured.  
  * If an artifact was blocked and unblocked multiple times during the selected time frame, a blocked reason for each 
    blocked duration will be counted.  
+ * Reason counts are case insensitive. 
    
 ##Notes: 
  * Data button will display a grid of data used in the chart creation.  

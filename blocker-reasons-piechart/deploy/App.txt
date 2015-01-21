@@ -3,11 +3,11 @@
 <head>
     <title>Historical Blocker Reasons</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Jan 20 2015 21:14:15 GMT-0700 (MST) -->
+    <!--  Build Date: Wed Jan 21 2015 09:53:21 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Jan 20 2015 21:14:15 GMT-0700 (MST)";
-        var CHECKSUM = 39959229424;
+        var APP_BUILD_DATE = "Wed Jan 21 2015 09:53:21 GMT-0700 (MST)";
+        var CHECKSUM = 41321643863;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -313,7 +313,6 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
     Ext.define('Rally.technicalservices.DataExportDialog', {
         extend: 'Rally.ui.dialog.Dialog',
         logger: new Rally.technicalservices.Logger(),
-        width: 800,
         autoShow: true,
         title: 'Data Dialog',
 
@@ -330,7 +329,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
            var items = [];
            this.logger.log('_initializeItems', this.data);
            items.push(this._buildGrid());
-           items.push({xtype:'container',itemId: 'button-container', items: [{
+           items.push({xtype:'container',itemId: 'button-container', layout: {type: 'hbox'}, items: [{
                     xtype     : 'rallybutton',
                     text      : 'Export',
                     scope: this,
@@ -355,6 +354,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
               xtype:'rallygrid',
               store: store,
               columnCfgs: this._getColumnCfgs(this.data),
+              height: this.height - 100,
               pagingToolbarCfg: {
                   pageSizes: [5, 10, 25]
                }
@@ -740,6 +740,16 @@ Ext.define('Rally.technicalservices.Toolbox',{
         });
         return snaps_by_oid;
     },
+    getCaseInsensitiveKey: function(obj, inputStr){
+        var new_key = inputStr;
+        Ext.Object.each(obj, function(key, val){
+            if (new_key.toLowerCase() == key.toLowerCase()){
+                new_key = key;  
+            }
+         });
+        return new_key;
+
+    },
     aggregateSnapsByOidForModel: function(snaps){
         //Return a hash of objects (key=ObjectID) with all snapshots for the object
         var snaps_by_oid = {};
@@ -953,16 +963,16 @@ Ext.define('Rally.technicalservices.Toolbox',{
             var data = [];  
             Ext.each(blocked_durations, function(duration){
                 if (duration.BlockedReason){
-                    if (counts[duration.BlockedReason] == undefined){
-                        counts[duration.BlockedReason] = 0; 
+                    count_key = Rally.technicalservices.Toolbox.getCaseInsensitiveKey(counts, duration.BlockedReason);
+                    if (counts[count_key] == undefined){
+                        counts[count_key] = 0; 
                     } 
-                    counts[duration.BlockedReason]++; 
+                    counts[count_key]++; 
                 }
                 data.push({FormattedID: duration.FormattedID, Name: duration.Name, BlockedReason: duration.BlockedReason});
             },this);
             return {counts: counts, data: data};  
         },
-
         getData: function(){
             return this.data;  
         }
@@ -1026,13 +1036,28 @@ Ext.define('CustomApp', {
         this.logger.log('_viewData');
         
         var data = this.down('#crt').calculator.getData();  
-        Ext.create('Rally.technicalservices.DataExportDialog', {
-            draggable: true,
-            modal: true,
-            autoShow: true,
-            title: 'Data for ' + this.chartTitle,
-            data: data
-        });
+        var height = this.getHeight() || 500;
+        var width = this.getWidth() || 800;
+        
+        if ( width > 800 ) {
+            width = 800;
+        }
+        if ( height > 550 ) {
+            height = 550;
+        }
+        if ( height < 200 ) {
+            alert("The app panel is not tall enough to allow for displaying data.");
+        } else {        
+            Ext.create('Rally.technicalservices.DataExportDialog', {
+                draggable: true,
+                modal: true,
+                width: width,
+                height: height,
+                autoShow: true,
+                title: 'Data for ' + this.chartTitle,
+                data: data
+            });
+        }
     },
     _buildChart: function(cb){
         var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
