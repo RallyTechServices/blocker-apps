@@ -2,6 +2,7 @@
 
 This app shows a pie chart with the distribution of blocked reasons over for 
 the selected date range.  
+[Get the code...](https://raw.githubusercontent.com/RallyTechServices/blocker-apps/master/blocker-reasons-piechart/deploy/App.txt)
 
 ![ScreenShot](/images/blocker-reasons-piechart.png)
 
