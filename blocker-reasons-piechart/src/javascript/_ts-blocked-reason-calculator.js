@@ -157,8 +157,10 @@
             return {categories: [], series: series};
         },
         _getSeries: function(snaps_by_oid, date_buckets){
+
+            var blocked_durations = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
+           var count_data = this.getCountsByReason(blocked_durations);
             
-            var count_data = Rally.technicalservices.BlockedToolbox.getCountsByReason(snaps_by_oid);
             this.data = count_data.data;  
             var series_data = []; 
             Ext.Object.each(count_data.counts, function(key,val){
@@ -166,6 +168,21 @@
             },this);
             return [{type: 'pie', name: this.chartTitle, data: series_data}];
         },
+        getCountsByReason: function(blocked_durations){
+            var counts = {};
+            var data = [];  
+            Ext.each(blocked_durations, function(duration){
+                if (duration.BlockedReason){
+                    if (counts[duration.BlockedReason] == undefined){
+                        counts[duration.BlockedReason] = 0; 
+                    } 
+                    counts[duration.BlockedReason]++; 
+                }
+                data.push({FormattedID: duration.FormattedID, Name: duration.Name, BlockedReason: duration.BlockedReason});
+            },this);
+            return {counts: counts, data: data};  
+        },
+
         getData: function(){
             return this.data;  
         }

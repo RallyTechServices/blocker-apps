@@ -42,7 +42,10 @@
           return {
               xtype:'rallygrid',
               store: store,
-              columnCfgs: this._getColumnCfgs(this.data)
+              columnCfgs: this._getColumnCfgs(this.data),
+              pagingToolbarCfg: {
+                  pageSizes: [5, 10, 25]
+               }
           };
       },
       _getColumnCfgs: function(data){

@@ -153,14 +153,13 @@
         runCalculation: function (snapshots) {
             this.logger.log("runCalculations snapshots",snapshots.length, snapshots);
             
-            var snaps_by_oid = this._aggregateSnapshots(snapshots);
-            var buckets = this._getDateBuckets(this.startDate, this.endDate, this.granularity); 
+            var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOid(snapshots); //._aggregateSnapshots(snapshots);
+            var buckets = Rally.technicalservices.Toolbox.getDateBuckets(this.startDate, this.endDate, this.granularity); 
             
             //Blocked during month, unblocked during month 
             var series = this._getSeries(snaps_by_oid, buckets);
 
-            var categories = this._formatCategories(buckets, this.dateFormat);  
-            console.log(series, categories);
+            var categories = Rally.technicalservices.Toolbox.formatDateBuckets(buckets, this.dateFormat);  
             return {categories: categories, series: series};
         },
         _getSeries: function(snaps_by_oid, date_buckets){
@@ -172,107 +171,20 @@
                 unblocked_buckets[i] = 0;
             }
             var data = [];
-            Ext.Object.each(snaps_by_oid, function(oid, snaps){
-                var last_blocked_time = null; 
-                var data_record = {FormattedId: null, Name: null, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
-                Ext.each(snaps, function(snap){
-                    var formatted_id = snap.FormattedID;  
-                    data_record['FormattedId']=formatted_id;
-                    data_record['Name']=snap.Name; 
-                    
-                    var is_blocked = snap.Blocked;
-                    var was_blocked = is_blocked;  
-                    if (snap._PreviousValues && (snap._PreviousValues.Blocked != undefined)){
-                        was_blocked = snap._PreviousValues.Blocked;
+            var blocked_durations = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
+            Ext.each(blocked_durations, function(duration){
+                for(var i=0; i< date_buckets.length; i++){
+                    if (duration.UnblockedDate >= date_buckets[i] && duration.UnblockedDate < Rally.util.DateTime.add(date_buckets[i],this.granularity,1)){
+                        unblocked_buckets[i]++; 
                     }
-                    
-                    var has_reason = false; 
-                    if (snap.BlockedReason && snap.BlockedReason.length >0){
-                        has_reason = true; 
+                    if (duration.BlockedDate >= date_buckets[i] && duration.BlockedDate < Rally.util.DateTime.add(date_buckets[i],this.granularity,1)){
+                        blocked_buckets[i]++; 
                     }
-                    var had_reason = has_reason;  
-                    if (snap._PreviousValues && (snap._PreviousValues.BlockedReason != undefined)){
-                        had_reason = false;  
-                        if (snap._PreviousValues.BlockedReason && snap._PreviousValues.BlockedReason.length > 0){
-                            had_reason = true; 
-                        };
-                    }
-                    var date = Rally.util.DateTime.fromIsoString(snap._ValidFrom);
-                    if (was_blocked && had_reason && (is_blocked == false)){
-                        for(var i=0; i< date_buckets.length; i++){
-                            if (date >= date_buckets[i] && date < Rally.util.DateTime.add(date_buckets[i],this.granularity,1)){
-                                unblocked_buckets[i]++; 
-                            }
-                        }
-                        data_record['UnblockedDate'] = date; 
-                        data_record['BlockedReason'] = snap._PreviousValues.BlockedReason; 
-                        data.push(data_record);  //We push this here so that we can start a new one.  
-                        data_record = {FormattedId: formatted_id, Name: snap.Name, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
-                        last_blocked_time = null;  
-                    } 
-                    
-                    if (is_blocked && (was_blocked == false)){
-                        last_blocked_time = date; 
-                    }
-
-                    if (is_blocked && has_reason && last_blocked_time){
-                        for(var i=0; i< date_buckets.length; i++){
-                            if (last_blocked_time >= date_buckets[i] && last_blocked_time < Rally.util.DateTime.add(date_buckets[i],this.granularity,1)){
-                                blocked_buckets[i]++; 
-                            }
-                        }
-                        data_record['BlockedReason'] = snap.BlockedReason; 
-                        data_record['BlockedDate'] = last_blocked_time;
-                        last_blocked_time = null;  
-                    }
-                },this);
-                if (data_record.BlockedDate != null && data_record.UnblockedDate == null){
-                    data.push(data_record);
                 }
-            },this);
+                data.push(duration);
+            }, this);
             this.data = data;
             return [{name:'Blocked', data: blocked_buckets},{name:'Unblocked', data: unblocked_buckets}];  
-        },
-        _getDateBuckets: function(startDate, endDate, granularity){
-
-            var bucketStartDate = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(startDate);
-            var bucketEndDate = Rally.technicalservices.Toolbox.getEndOfMonthAsDate(endDate);
-           
-            this.logger.log('_getDateBuckets',startDate,bucketStartDate,endDate,bucketEndDate,granularity);
-            
-            var date = bucketStartDate;
-            
-            var buckets = []; 
-            while (date<bucketEndDate && bucketStartDate < bucketEndDate){
-                buckets.push(date);
-                date = Rally.util.DateTime.add(date,granularity,1);
-            }
-            return buckets;  
-        },
-        _formatCategories: function(buckets, dateFormat){
-            var categories = [];
-            Ext.each(buckets, function(bucket){
-                categories.push(Rally.util.DateTime.format(bucket,dateFormat));
-            });
-            categories[categories.length-1] += "*"; 
-            return categories; 
-        },
-        
-        /**
-         * aggregateSnapsots:  returns a hash of objects (key = ObjID) with all snapshots for the object
-         */
-        _aggregateSnapshots: function(snapshots){
-            //Return a hash of objects (key=ObjectID) with all snapshots for the object
-            var snaps_by_oid = {};
-            Ext.each(snapshots, function(snap){
-                var oid = snap.ObjectID;
-                if (snaps_by_oid[oid] == undefined){
-                    snaps_by_oid[oid] = [];
-                }
-                snaps_by_oid[oid].push(snap);
-                
-            });
-            return snaps_by_oid;
         },
         getData: function(){
             return this.data;  

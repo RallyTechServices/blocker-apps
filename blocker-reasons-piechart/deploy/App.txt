@@ -3,11 +3,11 @@
 <head>
     <title>Historical Blocker Reasons</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Mon Jan 19 2015 12:56:17 GMT-0700 (MST) -->
+    <!--  Build Date: Tue Jan 20 2015 20:37:27 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Jan 19 2015 12:56:17 GMT-0700 (MST)";
-        var CHECKSUM = 37829613746;
+        var APP_BUILD_DATE = "Tue Jan 20 2015 20:37:27 GMT-0700 (MST)";
+        var CHECKSUM = 39914703089;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -140,12 +140,90 @@ Ext.define('Rally.technicalservices.Logger',{
 
 Ext.define('Rally.technicalservices.BlockedToolbox',{
     singleton: true,
+    /**
+     * getBlockedDurations
+     *   
+     * Returns an array of objects that represent one blocked duration for an artifact and include the following properties:
+     *     FormattedID
+     *     Name
+     *     DateBlocked
+     *     DateUnblocked
+     *     BlockedReason
+     *     
+     * Assumes the minimal fetch list:  
+     *     Name
+     *     FormattedID
+     *     _ValidFrom
+     *     Blocked
+     *     BlockedReason
+     *     _PreviousValues.Blocked
+     *     _PreviousValues.BlockedReason
+     *  
+     * Also assumes snapshots are sorted by _ValidFrom in ascending order 
+     * 
+     */
+    getBlockedDurations: function(snaps_by_oid){
+        
+        var data = [];
+        
+        Ext.Object.each(snaps_by_oid, function(oid, snaps){
+            
+            var last_blocked_time = null; 
+            var data_record = {FormattedID: null, Name: null, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
+            
+            Ext.each(snaps, function(snap){
+                data_record.FormattedID = snap.FormattedID ;
+                data_record.Name = snap.Name ; 
+                var is_blocked = snap.Blocked ;
+                var was_blocked = is_blocked;  
+                if (snap._PreviousValues && (snap._PreviousValues.Blocked != undefined)){
+                    was_blocked =  snap._PreviousValues.Blocked;
+                } else if (snap["_PreviousValues.Blocked"] != null){
+                    was_blocked = snap["_PreviousValues.Blocked"];
+                }
+                
+                var reason = snap.BlockedReason || ''; 
+                
+                var prev_reason = '';  
+                if (snap._PreviousValues && (snap._PreviousValues.BlockedReason != undefined)) {
+                    prev_reason = snap._PreviousValues.BlockedReason;
+                } else if (snap["_PreviousValues.BlockedReason"]){
+                    prev_reason = snap["_PreviousValues.BlockedReason"];
+                }
+                
+                var date = Rally.util.DateTime.fromIsoString(snap._ValidFrom);
+                if (was_blocked && prev_reason.length > 0 && (is_blocked == false)){
+                    data_record.UnblockedDate = date; 
+                    data_record.BlockedReason = prev_reason; 
+                    data.push(data_record);  //We push this here so that we can start a new one.  
+                    data_record = {FormattedID: snap.FormattedID, Name: snap.Name, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
+                    last_blocked_time = null;  
+                } 
+                
+                if (is_blocked && (was_blocked == false)){
+                    last_blocked_time = date; 
+                }
+                if (is_blocked && reason.length > 0 && last_blocked_time){
+                    data_record.BlockedReason = reason; 
+                    data_record.BlockedDate = last_blocked_time;
+//                    last_blocked_time = null;  
+                }
+            },this);
+            
+            if (data_record.BlockedDate && data_record.UnblockedDate == null){
+                data.push(data_record);
+            }
+        },this);
+        return data;  
+    },
     getCountsByReason: function(snaps_by_oid){
         var counts = {};
         var data = [];  
         Ext.Object.each(snaps_by_oid, function(oid, snaps){
-            var rec = {ObjectID: oid, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
+            var rec = {FormattedID: null, Name: null, BlockedReason: null};
             Ext.each(snaps, function(snap){
+                rec.Name = snap.Name;  
+                rec.FormattedID = snap.FormattedID;
                 if (snap.BlockedReason){
                     if (counts[snap.BlockedReason] == undefined){
                         counts[snap.BlockedReason] = 0; 
@@ -160,11 +238,10 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
     },
     bucketDataByDate: function(artifacts, artifactProperty, dateInterval, dateFormat, bucketedDateStrings){
         var buckets = {};
-        console.log(bucketedDateStrings);
+
         Ext.each(bucketedDateStrings, function(str){
             buckets[str] = 0;
         });
-        console.log(buckets);
         
         Ext.Object.each(artifacts, function(key, artifact){
             if (artifact[artifactProperty]){
@@ -231,82 +308,7 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
             block_action[formatted_id] = blocked_actions;
         });
         return block_action         
-    },
-//    getDateBucketsForArtifacts: function(artifacts, artifactProperties, dateInterval, dateFormat){
-//        var earliest_date = new Date();
-//        var latest_date = Rally.util.DateTime.add(earliest_date,"year",-20);
-//        
-//        Ext.Object.each(artifacts,function(key,artifact){
-//            Ext.each(artifactProperties, function(prop){
-//                if (artifact[prop]){
-//                    var date = Rally.util.DateTime.fromIsoString(artifact[prop]);
-//                    if (date < earliest_date){
-//                        earliest_date = date; 
-//                    }
-//                    if (date > latest_date){
-//                        latest_date = date;
-//                    }                
-//                }
-//            })
-//        });
-//        
-//        var buckets = [];
-//        var date = earliest_date; 
-//        while (date < latest_date && earliest_date < latest_date){
-//            var bucket = Rally.util.DateTime.format(date,dateFormat);
-//            console.log(date, bucket);
-//            if (!Ext.Array.contains(buckets, bucket)){
-//                buckets.push(bucket);
-//            }
-//            date = Rally.util.DateTime.add(date,dateInterval,1);
-//        }
-//        return buckets;
-//    },
-//    getStatistics: function(artifacts){
-//        //Mean, Min, Max, Totals
-//        var reasons = this.getUniquePropertyValues(artifacts,"blockedReason");
-//        var daysToResolution = {};  
-//        Ext.each(reasons, function(reason){
-//            daysToResolution[reason] = [];
-//        });
-//        
-//        Ext.Object.each(artifacts, function(key,artifact){
-//            if (artifact.blockedReason && artifact.unblockedDate){
-//                daysToResolution[artifact.blockedReason].push(artifact.getDaysToResolution());
-//            }
-//        },this);
-//        
-//        var data = [];
-//        var total = 0;
-//        Ext.Object.each(daysToResolution, function(key,val){
-//            total += val.length;
-//            data.push({reason: key, mean: Ext.Array.mean(val), min: Ext.Array.min(val), max: Ext.Array.max(val), total: val.length});
-//        });
-//        
-//        var all = _.flatten(_.values(daysToResolution));
-//        data.push({reason: 'All', mean: Ext.Array.mean(all), min: Ext.Array.min(all), max: Ext.Array.max(all), total: total});
-//        return data;
-//    },
-//    getUniquePropertyValues: function(artifacts, property, transformFn){
-//        
-//        var unique_values = [];  
-//        console.log(transformFn);
-//        if (transformFn == undefined){
-//            transformFn = function(val){return val;}
-//        }
-//        console.log('fn',transformFn);
-//        Ext.Object.each(artifacts, function(key,artifact){
-//            console.log(artifact, artifact[property]);
-//            if (artifact[property]){
-//                var val = transformFn(artifact[property]);
-//                console.log('val',val,Ext.Array.contains(unique_values, val));
-//                if (!Ext.Array.contains(unique_values, val)){
-//                    unique_values.push(val);
-//                }
-//            }
-//        });
-//        return unique_values.sort(); 
-//    }
+    }
 });
     Ext.define('Rally.technicalservices.DataExportDialog', {
         extend: 'Rally.ui.dialog.Dialog',
@@ -352,7 +354,10 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
           return {
               xtype:'rallygrid',
               store: store,
-              columnCfgs: this._getColumnCfgs(this.data)
+              columnCfgs: this._getColumnCfgs(this.data),
+              pagingToolbarCfg: {
+                  pageSizes: [5, 10, 25]
+               }
           };
       },
       _getColumnCfgs: function(data){
@@ -707,6 +712,10 @@ Ext.override(Rally.ui.chart.Chart,{
     });
 Ext.define('Rally.technicalservices.Toolbox',{
     singleton: true,
+    /**
+     * Returns beginnig of month as date for the current time zone
+     * 
+     */
     getBeginningOfMonthAsDate: function(dateInMonth){
         var year = dateInMonth.getFullYear();
         var month = dateInMonth.getMonth();
@@ -727,6 +736,19 @@ Ext.define('Rally.technicalservices.Toolbox',{
                 snaps_by_oid[oid] = [];
             }
             snaps_by_oid[oid].push(snap);
+            
+        });
+        return snaps_by_oid;
+    },
+    aggregateSnapsByOidForModel: function(snaps){
+        //Return a hash of objects (key=ObjectID) with all snapshots for the object
+        var snaps_by_oid = {};
+        Ext.each(snaps, function(snap){
+            var oid = snap.ObjectID || snap.get('ObjectID');
+            if (snaps_by_oid[oid] == undefined){
+                snaps_by_oid[oid] = [];
+            }
+            snaps_by_oid[oid].push(snap.getData());
             
         });
         return snaps_by_oid;
@@ -915,8 +937,10 @@ Ext.define('Rally.technicalservices.Toolbox',{
             return {categories: [], series: series};
         },
         _getSeries: function(snaps_by_oid, date_buckets){
+
+            var blocked_durations = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
+           var count_data = this.getCountsByReason(blocked_durations);
             
-            var count_data = Rally.technicalservices.BlockedToolbox.getCountsByReason(snaps_by_oid);
             this.data = count_data.data;  
             var series_data = []; 
             Ext.Object.each(count_data.counts, function(key,val){
@@ -924,6 +948,21 @@ Ext.define('Rally.technicalservices.Toolbox',{
             },this);
             return [{type: 'pie', name: this.chartTitle, data: series_data}];
         },
+        getCountsByReason: function(blocked_durations){
+            var counts = {};
+            var data = [];  
+            Ext.each(blocked_durations, function(duration){
+                if (duration.BlockedReason){
+                    if (counts[duration.BlockedReason] == undefined){
+                        counts[duration.BlockedReason] = 0; 
+                    } 
+                    counts[duration.BlockedReason]++; 
+                }
+                data.push({FormattedID: duration.FormattedID, Name: duration.Name, BlockedReason: duration.BlockedReason});
+            },this);
+            return {counts: counts, data: data};  
+        },
+
         getData: function(){
             return this.data;  
         }
@@ -940,7 +979,7 @@ Ext.define('CustomApp', {
     chartTitle: 'Blocker Causes',
     types: ['HierarchicalRequirement','Defect','Task'],
     hydrate: ['_TypeHierarchy'],
-    fetch: ['Blocked','BlockedReason','Blocker','_TypeHierarchy'],
+    fetch: ['FormattedID','Name','Blocked','BlockedReason','_PreviousValues.Blocked','_PreviousValues.BlockedReason','_TypeHierarchy'],
     pickerOptions: [
                     {name: 'Last Complete Month', value: -1},
                     {name: 'Last 2 Complete Months', value: -2},
@@ -1013,7 +1052,9 @@ Ext.define('CustomApp', {
                 hydrate: this.hydrate,
                 find: {$or: [
                              {"BlockedReason": {$exists: true}},
-                             {"_PreviousValues.BlockedReason": {$exists: true}}
+                             {"_PreviousValues.BlockedReason": {$exists: true}},
+                             {"Blocked": true},
+                             {"_PreviousValues.Blocked": true}
                       ],
                       "_ValidFrom": {$gte: start_date}
                 },

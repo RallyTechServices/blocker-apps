@@ -28,6 +28,19 @@ Ext.define('Rally.technicalservices.Toolbox',{
         });
         return snaps_by_oid;
     },
+    aggregateSnapsByOidForModel: function(snaps){
+        //Return a hash of objects (key=ObjectID) with all snapshots for the object
+        var snaps_by_oid = {};
+        Ext.each(snaps, function(snap){
+            var oid = snap.ObjectID || snap.get('ObjectID');
+            if (snaps_by_oid[oid] == undefined){
+                snaps_by_oid[oid] = [];
+            }
+            snaps_by_oid[oid].push(snap.getData());
+            
+        });
+        return snaps_by_oid;
+    },
     getDateBuckets: function(startDate, endDate, granularity){
 
         var bucketStartDate = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(startDate);

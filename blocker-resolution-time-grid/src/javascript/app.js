@@ -65,7 +65,7 @@ Ext.define('CustomApp', {
             listeners: {
                 scope: this, 
                 load: function(store, data, success){ 
-                    var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOid(data);
+                    var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOidForModel(data);
                     var processed_data = this._processData(snaps_by_oid)
 ;                   var statistics_data = this._calculateStatistics(processed_data);
                     this._buildGrid(statistics_data);
@@ -77,7 +77,9 @@ Ext.define('CustomApp', {
             find: {
                $or: [
                      {"BlockedReason": {$exists: true}},
-                     {"_PreviousValues.BlockedReason": {$exists: true}}
+                     {"_PreviousValues.BlockedReason": {$exists: true}},
+                     {"Blocked": true},
+                     {"_PreviousValues.Blocked": true}
                ],
                $or: [
                      {"_ValidFrom": {$gte: start_date}},
@@ -101,23 +103,22 @@ Ext.define('CustomApp', {
 
     },
     _processData: function(snaps_by_oid){
-        var blocked_data = Rally.technicalservices.BlockedToolbox.aggregateBlockedTimelines(snaps_by_oid);
-        this.logger.log('_processData', blocked_data);
+        //var blocked_data = Rally.technicalservices.BlockedToolbox.aggregateBlockedTimelines(snaps_by_oid);
+        console.log(snaps_by_oid);
+        var blocked_durations  = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
         
         var export_data = [];  
         var reason_data = {};  
-        this.logger.log('_processData',blocked_data);
-        Ext.Object.each(blocked_data, function(formatted_id, blocks){
-            Ext.each(blocks, function(block){
-                export_data.push(block);
-                if (block.BlockedReason && block.BlockedReason.length > 0 && block.BlockedDate && block.UnblockedDate){
-                    if (reason_data[block.BlockedReason] == undefined){
-                        reason_data[block.BlockedReason] = [];
-                    }
-                    var daysToResolution = Rally.util.DateTime.getDifference(block.UnblockedDate, block.BlockedDate,"day");
-                    reason_data[block.BlockedReason].push(daysToResolution);
+        this.logger.log('_processData',blocked_durations);
+        Ext.each(blocked_durations, function(duration){
+            export_data.push(duration);
+            if (duration.BlockedReason && duration.BlockedReason.length > 0 && duration.BlockedDate && duration.UnblockedDate){
+                if (reason_data[duration.BlockedReason] == undefined){
+                    reason_data[duration.BlockedReason] = [];
                 }
-            });
+                var daysToResolution = Rally.util.DateTime.getDifference(duration.UnblockedDate, duration.BlockedDate,"day");
+                reason_data[duration.BlockedReason].push(daysToResolution);
+            }
         });
         this.exportData = export_data; 
         return reason_data; 
