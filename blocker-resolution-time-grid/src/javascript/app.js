@@ -74,6 +74,7 @@ Ext.define('CustomApp', {
             hydrate: this.hydrate,
             fetch: this.fetch,
             compress: true, 
+            limit: 'Infinity',
             find: {
                $or: [
                      {"BlockedReason": {$exists: true}},

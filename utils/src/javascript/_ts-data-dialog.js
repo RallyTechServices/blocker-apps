@@ -1,7 +1,7 @@
     Ext.define('Rally.technicalservices.DataExportDialog', {
         extend: 'Rally.ui.dialog.Dialog',
         logger: new Rally.technicalservices.Logger(),
-        width: 700,
+        width: 800,
         autoShow: true,
         title: 'Data Dialog',
 

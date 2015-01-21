@@ -89,6 +89,7 @@ Ext.define('CustomApp', {
                       ],
                       "_ValidFrom": {$gte: start_date}
                 },
+                limit: 'Infinity',
                 filters: [
                     {
                         property: '_TypeHierarchy',
