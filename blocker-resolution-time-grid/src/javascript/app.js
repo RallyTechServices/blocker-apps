@@ -132,11 +132,11 @@ Ext.define('CustomApp', {
         var total = 0;
         Ext.Object.each(processed_data, function(key,val){
             total += val.length;
-            data.push({reason: key, mean: Ext.Array.mean(val), min: Ext.Array.min(val), max: Ext.Array.max(val), total: val.length});
+            data.push({reason: key, mean: Math.round(Ext.Array.mean(val)), min: Math.round(Ext.Array.min(val)), max: Math.round(Ext.Array.max(val)), total: val.length});
         });
         
         var all = _.flatten(_.values(processed_data));
-        data.push({reason: 'All', mean: Ext.Array.mean(all), min: Ext.Array.min(all), max: Ext.Array.max(all), total: total});
+        data.push({reason: 'All', mean: Math.round(Ext.Array.mean(all)), min: Math.round(Ext.Array.min(all)), max: Math.round(Ext.Array.max(all)), total: total});
         return data;        
     }, 
    _exportData: function(){
