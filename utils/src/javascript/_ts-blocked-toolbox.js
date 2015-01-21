@@ -32,20 +32,23 @@ Ext.define('Rally.technicalservices.BlockedToolbox',{
             var data_record = {FormattedID: null, Name: null, BlockedReason: null, BlockedDate: null, UnblockedDate: null};
             
             Ext.each(snaps, function(snap){
-                data_record.FormattedID = snap.FormattedID;
-                data_record.Name = snap.Name; 
-
-                var is_blocked = snap.Blocked;
+                data_record.FormattedID = snap.FormattedID ;
+                data_record.Name = snap.Name ; 
+                var is_blocked = snap.Blocked ;
                 var was_blocked = is_blocked;  
                 if (snap._PreviousValues && (snap._PreviousValues.Blocked != undefined)){
-                    was_blocked = snap._PreviousValues.Blocked;
+                    was_blocked =  snap._PreviousValues.Blocked;
+                } else if (snap["_PreviousValues.Blocked"] != null){
+                    was_blocked = snap["_PreviousValues.Blocked"];
                 }
                 
                 var reason = snap.BlockedReason || ''; 
                 
                 var prev_reason = '';  
-                if (snap._PreviousValues && (snap._PreviousValues.BlockedReason != undefined)){
+                if (snap._PreviousValues && (snap._PreviousValues.BlockedReason != undefined)) {
                     prev_reason = snap._PreviousValues.BlockedReason;
+                } else if (snap["_PreviousValues.BlockedReason"]){
+                    prev_reason = snap["_PreviousValues.BlockedReason"];
                 }
                 
                 var date = Rally.util.DateTime.fromIsoString(snap._ValidFrom);

@@ -8,4 +8,4 @@
 
 ####Blocker Resolution Time Grid [Read More...](/blocker-resolution-time-grid/README.md)
 
-####Percentage of User Stories and Defects that are Blockers for a given month [Read More...](/pct-blocker-workitem/README.md)
+####Percentage of unique User Stories and Defects that are Blockers [Read More...](/pct-blocker-workitem/README.md)
