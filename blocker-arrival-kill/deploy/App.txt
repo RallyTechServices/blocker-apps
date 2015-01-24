@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Fri Jan 23 2015 17:25:23 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 23 2015 17:32:44 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Fri Jan 23 2015 17:25:23 GMT-0700 (MST)";
-        var CHECKSUM = 43458450712;
+        var APP_BUILD_DATE = "Fri Jan 23 2015 17:32:44 GMT-0700 (MST)";
+        var CHECKSUM = 43382470422;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -1113,9 +1113,6 @@ Ext.define('CustomApp', {
             },
 
             chartConfig: {
-                exporting: {
-                    enabled: true
-                },     
                 chart: {
                         type: 'column'
 

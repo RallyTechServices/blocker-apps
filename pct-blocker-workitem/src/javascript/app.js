@@ -50,14 +50,6 @@ Ext.define('CustomApp', {
             margin: '0 0 0 10',
             handler: this._viewData
         });
-        
-        this.down('#selection_box').add({
-            xtype: 'rallybutton',
-            itemId: 'btn-export',
-            text: 'Export',
-            scope: this,
-            handler: this._exportChart
-        });
         this._buildChart(cb);
     }, 
     _viewData: function(){
@@ -116,17 +108,9 @@ Ext.define('CustomApp', {
                 },
                 removeUnauthorizedSnapshots: true
             },
-            listeners: {
-                render: function(chart){
-                   console.log(chart.getChart());
-                }
-            },
             chartConfig: {
                     chart: {
                         type: 'column'
-                    },
-                    exporting: {
-                         enabled: true
                     },
                     title: {
                         text: this.chartTitle
@@ -148,7 +132,4 @@ Ext.define('CustomApp', {
         });
         
     },
-    _exportChart: function(){
-        this.down('#crt').getChart().exportChart();
-    }
 });

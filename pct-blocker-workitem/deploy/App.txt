@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Percentage of WorkItems</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Fri Jan 23 2015 17:26:04 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 23 2015 17:32:58 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Fri Jan 23 2015 17:26:04 GMT-0700 (MST)";
-        var CHECKSUM = 26504042236;
+        var APP_BUILD_DATE = "Fri Jan 23 2015 17:32:58 GMT-0700 (MST)";
+        var CHECKSUM = 25874570301;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -840,14 +840,6 @@ Ext.define('CustomApp', {
             margin: '0 0 0 10',
             handler: this._viewData
         });
-        
-        this.down('#selection_box').add({
-            xtype: 'rallybutton',
-            itemId: 'btn-export',
-            text: 'Export',
-            scope: this,
-            handler: this._exportChart
-        });
         this._buildChart(cb);
     }, 
     _viewData: function(){
@@ -906,17 +898,9 @@ Ext.define('CustomApp', {
                 },
                 removeUnauthorizedSnapshots: true
             },
-            listeners: {
-                render: function(chart){
-                   console.log(chart.getChart());
-                }
-            },
             chartConfig: {
                     chart: {
                         type: 'column'
-                    },
-                    exporting: {
-                         enabled: true
                     },
                     title: {
                         text: this.chartTitle
@@ -938,9 +922,6 @@ Ext.define('CustomApp', {
         });
         
     },
-    _exportChart: function(){
-        this.down('#crt').getChart().exportChart();
-    }
 });
             
                Rally.launchApp('CustomApp', {

@@ -129,9 +129,6 @@ Ext.define('CustomApp', {
             },
 
             chartConfig: {
-                exporting: {
-                    enabled: true
-                },     
                 chart: {
                         type: 'column'
 
