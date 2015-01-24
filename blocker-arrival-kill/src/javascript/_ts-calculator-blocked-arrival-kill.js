@@ -184,7 +184,9 @@
                 data.push(duration);
             }, this);
             this.data = data;
-            return [{name:'Blocked', data: blocked_buckets},{name:'Unblocked', data: unblocked_buckets}];  
+            var blocked_data = _.map(blocked_buckets, function(py){return {y: py, color: 'red'}});
+            var unblocked_data = _.map(unblocked_buckets, function(py){return {y: py, color: 'green'}});
+            return [{name:'Blocked',  data: blocked_buckets},{name:'Unblocked', data: unblocked_buckets}];  
         },
         getData: function(){
             return this.data;  

@@ -23,7 +23,6 @@ Ext.define('CustomApp', {
     defaultPickerOption: 'Last 3 Complete Months',
     launch: function() {
         this._initialize();
-        
     },
     _initialize: function(){
                     var store = Ext.create('Ext.data.Store',{
@@ -56,7 +55,6 @@ Ext.define('CustomApp', {
                         handler: this._viewData,
                         //disabled: true
                     });
-
                     this._buildChart(cb);
     },    
     _viewData: function(){
@@ -99,10 +97,12 @@ Ext.define('CustomApp', {
 
         this.down('#display_box').removeAll(); 
         
-        this.down('#display_box').add({
+        var chart = this.down('#display_box').add({
             xtype: 'rallychart',
             itemId: 'crt',
             loadMask: false,
+            
+            chartColors:['#c42525','#8bbc21'],
             storeConfig: {
                 hydrate: this.hydrate,
                 fetch: this.fetch,
@@ -127,9 +127,11 @@ Ext.define('CustomApp', {
                 dateFormat: this.dateFormat,
                 startDate: start_date
             },
+
             chartConfig: {
-                    chart: {
+                chart: {
                         type: 'column'
+
                     },
                     title: {
                         text: this.chartTitle

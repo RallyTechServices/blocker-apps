@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Percentage of WorkItems</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 09:54:09 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 23 2015 17:32:58 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 09:54:09 GMT-0700 (MST)";
-        var CHECKSUM = 25715273681;
+        var APP_BUILD_DATE = "Fri Jan 23 2015 17:32:58 GMT-0700 (MST)";
+        var CHECKSUM = 25874570301;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -876,9 +876,10 @@ Ext.define('CustomApp', {
         
         this.down('#display_box').removeAll();
         
-        this.down('#display_box').add({
+        var chart = this.down('#display_box').add({
             xtype: 'rallychart',
             itemId: 'crt',
+            chartColors:['#8bbc21','#c42525'],
             calculatorType:  'Rally.technicalservices.calculator.StateTouchCalculator',
             calculatorConfig: {
                 startDate: start_date,
@@ -894,7 +895,8 @@ Ext.define('CustomApp', {
                           "__At": Rally.util.DateTime.toIsoString(start_date)
                       }]
                       }]
-                } 
+                },
+                removeUnauthorizedSnapshots: true
             },
             chartConfig: {
                     chart: {
@@ -918,7 +920,8 @@ Ext.define('CustomApp', {
                     }
             }
         });
-    }
+        
+    },
 });
             
                Rally.launchApp('CustomApp', {

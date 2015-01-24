@@ -86,9 +86,10 @@ Ext.define('CustomApp', {
         
         this.down('#display_box').removeAll();
         
-        this.down('#display_box').add({
+        var chart = this.down('#display_box').add({
             xtype: 'rallychart',
             itemId: 'crt',
+            chartColors:['#8bbc21','#c42525'],
             calculatorType:  'Rally.technicalservices.calculator.StateTouchCalculator',
             calculatorConfig: {
                 startDate: start_date,
@@ -104,7 +105,8 @@ Ext.define('CustomApp', {
                           "__At": Rally.util.DateTime.toIsoString(start_date)
                       }]
                       }]
-                } 
+                },
+                removeUnauthorizedSnapshots: true
             },
             chartConfig: {
                     chart: {
@@ -128,5 +130,6 @@ Ext.define('CustomApp', {
                     }
             }
         });
-    }
+        
+    },
 });
