@@ -50,6 +50,14 @@ Ext.define('CustomApp', {
             margin: '0 0 0 10',
             handler: this._viewData
         });
+        
+        this.down('#selection_box').add({
+            xtype: 'rallybutton',
+            itemId: 'btn-export',
+            text: 'Export',
+            scope: this,
+            handler: this._exportChart
+        });
         this._buildChart(cb);
     }, 
     _viewData: function(){
@@ -86,9 +94,10 @@ Ext.define('CustomApp', {
         
         this.down('#display_box').removeAll();
         
-        this.down('#display_box').add({
+        var chart = this.down('#display_box').add({
             xtype: 'rallychart',
             itemId: 'crt',
+            chartColors:['#8bbc21','#c42525'],
             calculatorType:  'Rally.technicalservices.calculator.StateTouchCalculator',
             calculatorConfig: {
                 startDate: start_date,
@@ -104,11 +113,20 @@ Ext.define('CustomApp', {
                           "__At": Rally.util.DateTime.toIsoString(start_date)
                       }]
                       }]
-                } 
+                },
+                removeUnauthorizedSnapshots: true
+            },
+            listeners: {
+                render: function(chart){
+                   console.log(chart.getChart());
+                }
             },
             chartConfig: {
                     chart: {
                         type: 'column'
+                    },
+                    exporting: {
+                         enabled: true
                     },
                     title: {
                         text: this.chartTitle
@@ -128,5 +146,9 @@ Ext.define('CustomApp', {
                     }
             }
         });
+        
+    },
+    _exportChart: function(){
+        this.down('#crt').getChart().exportChart();
     }
 });

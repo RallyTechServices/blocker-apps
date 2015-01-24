@@ -3,11 +3,11 @@
 <head>
     <title>Historical Blocker Reasons</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 09:53:21 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 23 2015 17:25:38 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 09:53:21 GMT-0700 (MST)";
-        var CHECKSUM = 41321643863;
+        var APP_BUILD_DATE = "Fri Jan 23 2015 17:25:38 GMT-0700 (MST)";
+        var CHECKSUM = 41291232219;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -988,7 +988,6 @@ Ext.define('CustomApp', {
     ],
     chartTitle: 'Blocker Causes',
     types: ['HierarchicalRequirement','Defect','Task'],
-    hydrate: ['_TypeHierarchy'],
     fetch: ['FormattedID','Name','Blocked','BlockedReason','_PreviousValues.Blocked','_PreviousValues.BlockedReason','_TypeHierarchy'],
     pickerOptions: [
                     {name: 'Last Complete Month', value: -1},
@@ -1074,7 +1073,6 @@ Ext.define('CustomApp', {
             calculatorConfig: {},
             storeConfig: {
                 fetch: this.fetch,
-                hydrate: this.hydrate,
                 find: {$or: [
                              {"BlockedReason": {$exists: true}},
                              {"_PreviousValues.BlockedReason": {$exists: true}},
@@ -1108,7 +1106,10 @@ Ext.define('CustomApp', {
                         pie: {
                             dataLabels: {
                                 enabled: true,
-                                format: '<b>{point.name}</b><br/>{point.percentage:.0f}%'
+                                format: '<b>{point.name}</b><br/>{point.percentage:.0f}%',
+                                distance: 15,
+                                overflow: "none",
+                                crop: false
                             }
                         }
                     }

@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Resolution Time</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 11:12:16 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 23 2015 17:25:50 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 11:12:16 GMT-0700 (MST)";
-        var CHECKSUM = 29825037451;
+        var APP_BUILD_DATE = "Fri Jan 23 2015 17:25:50 GMT-0700 (MST)";
+        var CHECKSUM = 30602555506;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -810,7 +810,7 @@ Ext.define('CustomApp', {
      */
     types: ['HierarchicalRequirement','Defect','Task'],
     hydrate: ['_TypeHierarchy'],
-    fetch: ['FormattedID', 'Name', 'Blocked','BlockedReason','_TypeHierarchy','_PreviousValues.BlockedReason','_PreviousValues.Blocked'], 
+    fetch: ['FormattedID', 'Name', 'Blocked','BlockedReason','_PreviousValues.BlockedReason','_PreviousValues.Blocked'], 
 
     launch: function() {
         this._initialize();
@@ -847,21 +847,25 @@ Ext.define('CustomApp', {
         this._fetchData(cb);
     },    
     _fetchData: function(cb){
-        var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
+        var start_date = Rally.util.DateTime.toIsoString(Rally.util.DateTime.add(new Date(),"month",cb.getValue()));
         var project = this.getContext().getProject().ObjectID;  
         
-        Ext.create('Rally.data.lookback.SnapshotStore', {
-            autoLoad: true,
-            listeners: {
-                scope: this, 
-                load: function(store, data, success){ 
-                    var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOidForModel(data);
-                    var processed_data = this._processData(snaps_by_oid)
-;                   var statistics_data = this._calculateStatistics(processed_data);
-                    this._buildGrid(statistics_data);
+        this.logger.log('_fetchData',project,start_date);
+        var store = Ext.create('Rally.data.lookback.SnapshotStore', {
+            exceptionHandler: function (proxy, response, operation) {
+                if (response == null) {
+                    self.queryValid = false;
+                } else {
+                    if (response && response.status !== 200) {
+                        self.queryValid = false;
+                    } 
+                    if (response && response.status === 409) {
+                        self.workspaceHalted = true;
+                    } else if (response && response.status === 503) {
+                        self.serviceUnavailable = true;
+                    }
                 }
             },
-            hydrate: this.hydrate,
             fetch: this.fetch,
             compress: true, 
             limit: 'Infinity',
@@ -872,35 +876,30 @@ Ext.define('CustomApp', {
                      {"Blocked": true},
                      {"_PreviousValues.Blocked": true}
                ],
-               $or: [
-                     {"_ValidFrom": {$gte: start_date}},
-                     {"__At": start_date}
-                ]
+               "_ValidTo": {$gte: start_date},
+               "_TypeHierarchy": {$in: this.types},
+               "_ProjectHierarchy": {$in: [project]}
             },
-            filters: [
-                {
-                    property: '_TypeHierarchy',
-                    operator: 'in',
-                    value: this.types
-                },{
-                    property: '_ProjectHierarchy',
-                    operator: 'in',
-                    value: [project]
-                }
-            ],
+            removeUnauthorizedSnapshots: true,
             sort: "_ValidFrom",
-            compress: true 
         });
-
+        store.on('load', this._mungeDataAndBuildGrid, this);
+        store.load({params: { removeUnauthorizedSnapshots: true }});
     },
+    _mungeDataAndBuildGrid: function(store, data, success){
+        this.logger.log('_mungeDataAndBuildGrid',data);
+        
+        var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOidForModel(data);
+        var processed_data = this._processData(snaps_by_oid);
+        var statistics_data = this._calculateStatistics(processed_data);
+        this._buildGrid(statistics_data);
+    },  
     _processData: function(snaps_by_oid){
-        //var blocked_data = Rally.technicalservices.BlockedToolbox.aggregateBlockedTimelines(snaps_by_oid);
-        console.log(snaps_by_oid);
-        var blocked_durations  = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
+       var blocked_durations  = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
         
         var export_data = [];  
         var reason_data = {};  
-        this.logger.log('_processData',blocked_durations);
+        this.logger.log('_processData',snaps_by_oid, blocked_durations);
         Ext.each(blocked_durations, function(duration){
             export_data.push(duration);
             if (duration.BlockedReason && duration.BlockedReason.length > 0 && duration.BlockedDate && duration.UnblockedDate){
@@ -930,7 +929,7 @@ Ext.define('CustomApp', {
         return data;        
     }, 
    _exportData: function(){
-       var file_name = "export.csv";
+       var file_name = "blocker-resolution-time-export.csv";
        var data_hash = {};
        Ext.each(Ext.Object.getKeys(this.exportData[0]), function(key){
            data_hash[key] = key;

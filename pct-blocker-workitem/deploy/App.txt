@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Percentage of WorkItems</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 09:54:09 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 23 2015 17:26:04 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 09:54:09 GMT-0700 (MST)";
-        var CHECKSUM = 25715273681;
+        var APP_BUILD_DATE = "Fri Jan 23 2015 17:26:04 GMT-0700 (MST)";
+        var CHECKSUM = 26504042236;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -840,6 +840,14 @@ Ext.define('CustomApp', {
             margin: '0 0 0 10',
             handler: this._viewData
         });
+        
+        this.down('#selection_box').add({
+            xtype: 'rallybutton',
+            itemId: 'btn-export',
+            text: 'Export',
+            scope: this,
+            handler: this._exportChart
+        });
         this._buildChart(cb);
     }, 
     _viewData: function(){
@@ -876,9 +884,10 @@ Ext.define('CustomApp', {
         
         this.down('#display_box').removeAll();
         
-        this.down('#display_box').add({
+        var chart = this.down('#display_box').add({
             xtype: 'rallychart',
             itemId: 'crt',
+            chartColors:['#8bbc21','#c42525'],
             calculatorType:  'Rally.technicalservices.calculator.StateTouchCalculator',
             calculatorConfig: {
                 startDate: start_date,
@@ -894,11 +903,20 @@ Ext.define('CustomApp', {
                           "__At": Rally.util.DateTime.toIsoString(start_date)
                       }]
                       }]
-                } 
+                },
+                removeUnauthorizedSnapshots: true
+            },
+            listeners: {
+                render: function(chart){
+                   console.log(chart.getChart());
+                }
             },
             chartConfig: {
                     chart: {
                         type: 'column'
+                    },
+                    exporting: {
+                         enabled: true
                     },
                     title: {
                         text: this.chartTitle
@@ -918,6 +936,10 @@ Ext.define('CustomApp', {
                     }
             }
         });
+        
+    },
+    _exportChart: function(){
+        this.down('#crt').getChart().exportChart();
     }
 });
             

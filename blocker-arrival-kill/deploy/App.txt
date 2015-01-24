@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Jan 21 2015 09:53:02 GMT-0700 (MST) -->
+    <!--  Build Date: Fri Jan 23 2015 17:25:23 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Jan 21 2015 09:53:02 GMT-0700 (MST)";
-        var CHECKSUM = 42811119128;
+        var APP_BUILD_DATE = "Fri Jan 23 2015 17:25:23 GMT-0700 (MST)";
+        var CHECKSUM = 43458450712;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -974,7 +974,9 @@ Ext.define('Rally.technicalservices.Toolbox',{
                 data.push(duration);
             }, this);
             this.data = data;
-            return [{name:'Blocked', data: blocked_buckets},{name:'Unblocked', data: unblocked_buckets}];  
+            var blocked_data = _.map(blocked_buckets, function(py){return {y: py, color: 'red'}});
+            var unblocked_data = _.map(unblocked_buckets, function(py){return {y: py, color: 'green'}});
+            return [{name:'Blocked',  data: blocked_buckets},{name:'Unblocked', data: unblocked_buckets}];  
         },
         getData: function(){
             return this.data;  
@@ -1005,7 +1007,6 @@ Ext.define('CustomApp', {
     defaultPickerOption: 'Last 3 Complete Months',
     launch: function() {
         this._initialize();
-        
     },
     _initialize: function(){
                     var store = Ext.create('Ext.data.Store',{
@@ -1038,7 +1039,6 @@ Ext.define('CustomApp', {
                         handler: this._viewData,
                         //disabled: true
                     });
-
                     this._buildChart(cb);
     },    
     _viewData: function(){
@@ -1081,10 +1081,12 @@ Ext.define('CustomApp', {
 
         this.down('#display_box').removeAll(); 
         
-        this.down('#display_box').add({
+        var chart = this.down('#display_box').add({
             xtype: 'rallychart',
             itemId: 'crt',
             loadMask: false,
+            
+            chartColors:['#c42525','#8bbc21'],
             storeConfig: {
                 hydrate: this.hydrate,
                 fetch: this.fetch,
@@ -1109,9 +1111,14 @@ Ext.define('CustomApp', {
                 dateFormat: this.dateFormat,
                 startDate: start_date
             },
+
             chartConfig: {
-                    chart: {
+                exporting: {
+                    enabled: true
+                },     
+                chart: {
                         type: 'column'
+
                     },
                     title: {
                         text: this.chartTitle

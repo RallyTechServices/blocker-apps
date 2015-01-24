@@ -9,7 +9,6 @@ Ext.define('CustomApp', {
     ],
     chartTitle: 'Blocker Causes',
     types: ['HierarchicalRequirement','Defect','Task'],
-    hydrate: ['_TypeHierarchy'],
     fetch: ['FormattedID','Name','Blocked','BlockedReason','_PreviousValues.Blocked','_PreviousValues.BlockedReason','_TypeHierarchy'],
     pickerOptions: [
                     {name: 'Last Complete Month', value: -1},
@@ -95,7 +94,6 @@ Ext.define('CustomApp', {
             calculatorConfig: {},
             storeConfig: {
                 fetch: this.fetch,
-                hydrate: this.hydrate,
                 find: {$or: [
                              {"BlockedReason": {$exists: true}},
                              {"_PreviousValues.BlockedReason": {$exists: true}},
@@ -129,7 +127,10 @@ Ext.define('CustomApp', {
                         pie: {
                             dataLabels: {
                                 enabled: true,
-                                format: '<b>{point.name}</b><br/>{point.percentage:.0f}%'
+                                format: '<b>{point.name}</b><br/>{point.percentage:.0f}%',
+                                distance: 15,
+                                overflow: "none",
+                                crop: false
                             }
                         }
                     }
