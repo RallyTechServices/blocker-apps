@@ -38,8 +38,9 @@ Ext.define('AgingCalculator',{
         return {startValue: startValue, currentValue: currentValue}
     },
     calculateDurations: function(snapsForOid, currentField, fieldValue, blockedAfterDate){
-        var granularity = "second";
-        var conversionDivisor = 86400;
+        var granularity = "hour";
+        var conversionDivisor = 24;
+        var threshhold = 24;
         var ages = [];
         var earliestStartDate = null;
         var lastEndDate = null;
@@ -68,7 +69,10 @@ Ext.define('AgingCalculator',{
                     }
                     if (startDate && previousValue === fieldValue){
                         lastEndDate = date;
-                        ages.push(Rally.util.DateTime.getDifference(date, startDate,granularity)/conversionDivisor);
+                        var diff = Rally.util.DateTime.getDifference(date, startDate,granularity);
+                        if (diff >= threshhold){
+                            ages.push(diff/conversionDivisor);
+                        }
                         startDate = null;
                     }
                 }
@@ -79,7 +83,10 @@ Ext.define('AgingCalculator',{
             },this);
 
             if (startDate != null && isCurrent){
-                ages.push(Rally.util.DateTime.getDifference(new Date(),startDate,granularity)/conversionDivisor);
+                var diff = Rally.util.DateTime.getDifference(new Date(),startDate,granularity);
+                if (diff >= threshhold){
+                    ages.push(diff/conversionDivisor);
+                }
             }
         }
         return {durations: ages, earliestStartDate: earliestStartDate, lastEndDate: lastEndDate};

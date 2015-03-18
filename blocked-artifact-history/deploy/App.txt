@@ -3,11 +3,11 @@
 <head>
     <title>Blocked Artifact History</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Wed Mar 18 2015 13:21:38 GMT-0700 (PDT) -->
+    <!--  Build Date: Wed Mar 18 2015 13:40:30 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Wed Mar 18 2015 13:21:38 GMT-0700 (PDT)";
-        var CHECKSUM = 54265579330;
+        var APP_BUILD_DATE = "Wed Mar 18 2015 13:40:30 GMT-0700 (PDT)";
+        var CHECKSUM = 54840647263;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -923,8 +923,9 @@ Ext.define('AgingCalculator',{
         return {startValue: startValue, currentValue: currentValue}
     },
     calculateDurations: function(snapsForOid, currentField, fieldValue, blockedAfterDate){
-        var granularity = "second";
-        var conversionDivisor = 86400;
+        var granularity = "hour";
+        var conversionDivisor = 24;
+        var threshhold = 24;
         var ages = [];
         var earliestStartDate = null;
         var lastEndDate = null;
@@ -953,7 +954,10 @@ Ext.define('AgingCalculator',{
                     }
                     if (startDate && previousValue === fieldValue){
                         lastEndDate = date;
-                        ages.push(Rally.util.DateTime.getDifference(date, startDate,granularity)/conversionDivisor);
+                        var diff = Rally.util.DateTime.getDifference(date, startDate,granularity);
+                        if (diff >= threshhold){
+                            ages.push(diff/conversionDivisor);
+                        }
                         startDate = null;
                     }
                 }
@@ -964,7 +968,10 @@ Ext.define('AgingCalculator',{
             },this);
 
             if (startDate != null && isCurrent){
-                ages.push(Rally.util.DateTime.getDifference(new Date(),startDate,granularity)/conversionDivisor);
+                var diff = Rally.util.DateTime.getDifference(new Date(),startDate,granularity);
+                if (diff >= threshhold){
+                    ages.push(diff/conversionDivisor);
+                }
             }
         }
         return {durations: ages, earliestStartDate: earliestStartDate, lastEndDate: lastEndDate};
@@ -1292,8 +1299,8 @@ Ext.define('blocked-artifact-history', {
             {text: 'Total Blocked Time (Days)', dataIndex: 'totalBlocked', renderer: this._decimalRenderer}];
         columns.push({text: 'Average Resolution Time (Days)', dataIndex: 'averageResolutionTime', renderer: this._decimalRenderer});
         columns.push({text: '#Durations', dataIndex: 'numDurations'});
-        columns.push({text: 'Iteration Blocked In', dataIndex: 'startValue', renderer: this._objectNameRenderer});
-        columns.push({text: 'Current Iteration', dataIndex: 'currentValue', renderer: this._objectNameRenderer});
+        columns.push({text: 'Iteration Blocked In', dataIndex: 'startValue', renderer: this._iterationRenderer});
+        columns.push({text: 'Current Iteration', dataIndex: 'currentValue', renderer: this._iterationRenderer});
         columns.push({text: 'Current Schedule State', dataIndex: 'ScheduleState'});
         columns.push({text: 'Currently Blocked', dataIndex: 'Blocked', renderer: this._yesNoRenderer});
         if (this.down('#data-grid')){
@@ -1352,6 +1359,12 @@ Ext.define('blocked-artifact-history', {
             return v.Name;
         }
         return v;
+    },
+    _iterationRenderer: function(v,m,r){
+        if (v && typeof v == 'object'){
+            return v.Name;
+        }
+        return 'Unscheduled';
     },
 
     _calculateAgingForBlockers: function(snapsByOid){

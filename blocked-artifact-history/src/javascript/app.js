@@ -183,8 +183,8 @@ Ext.define('blocked-artifact-history', {
             {text: 'Total Blocked Time (Days)', dataIndex: 'totalBlocked', renderer: this._decimalRenderer}];
         columns.push({text: 'Average Resolution Time (Days)', dataIndex: 'averageResolutionTime', renderer: this._decimalRenderer});
         columns.push({text: '#Durations', dataIndex: 'numDurations'});
-        columns.push({text: 'Iteration Blocked In', dataIndex: 'startValue', renderer: this._objectNameRenderer});
-        columns.push({text: 'Current Iteration', dataIndex: 'currentValue', renderer: this._objectNameRenderer});
+        columns.push({text: 'Iteration Blocked In', dataIndex: 'startValue', renderer: this._iterationRenderer});
+        columns.push({text: 'Current Iteration', dataIndex: 'currentValue', renderer: this._iterationRenderer});
         columns.push({text: 'Current Schedule State', dataIndex: 'ScheduleState'});
         columns.push({text: 'Currently Blocked', dataIndex: 'Blocked', renderer: this._yesNoRenderer});
         if (this.down('#data-grid')){
@@ -243,6 +243,12 @@ Ext.define('blocked-artifact-history', {
             return v.Name;
         }
         return v;
+    },
+    _iterationRenderer: function(v,m,r){
+        if (v && typeof v == 'object'){
+            return v.Name;
+        }
+        return 'Unscheduled';
     },
 
     _calculateAgingForBlockers: function(snapsByOid){
