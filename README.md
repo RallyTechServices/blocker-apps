@@ -10,3 +10,6 @@
 
 ####Percentage of unique User Stories and Defects that are Blockers [(more...)](/pct-blocker-workitem/README.md)   
 ![ScreenShot](/images/pct-blocker-workitem.png)
+
+####Blocked Artifact History [(more...)](/blocker-artifact-history/README.md)
+![ScreenShot](/images/blocker-artifact-history.png)
