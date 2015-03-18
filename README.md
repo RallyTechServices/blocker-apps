@@ -12,4 +12,4 @@
 ![ScreenShot](/images/pct-blocker-workitem.png)
 
 ####Blocked Artifact History [(more...)](/blocker-artifact-history/README.md)
-![ScreenShot](/images/blocker-artifact-history.png)
+![ScreenShot](/images/blocked-artifact-history.png)
