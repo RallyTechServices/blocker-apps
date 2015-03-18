@@ -14,4 +14,4 @@ The Iteration blocked in is the iteration that the item was first blocked in.  I
 
 This app uses the LBAPI to collect historical data and javascript SDK 2.0.
 
-![ScreenShot](images/blocked-artifact-history.png)
+![ScreenShot](/images/blocked-artifact-history.png)
