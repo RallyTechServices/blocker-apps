@@ -283,5 +283,4 @@ Ext.define('blocked-artifact-history', {
         this.logger.log('_exportData', filename, csv);
         Rally.technicalservices.FileUtilities.saveCSVToFile(csv,filename);
     }
-
 });
