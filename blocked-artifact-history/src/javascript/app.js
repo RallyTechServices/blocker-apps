@@ -15,7 +15,7 @@ Ext.define('blocked-artifact-history', {
     invalidDateString: 'Invalid Date',
     dateFormat: 'MM/dd/YYYY',
     showOptionsStore: [[true, "Current Blocked Items"],[false, "Items Blocked on or after"]],
-    lookbackFetchFields: ['_PreviousValues.Blocked','_SnapshotNumber','Name','FormattedID','_ProjectHierarchy','Feature','_TypeHierarchy','Blocked','_ValidFrom','_ValidTo','BlockedReason','c_BlockerOwnerFirstLast','c_BlockerCategory','c_BlockerCreationDate','DirectChildrenCount','Feature','Iteration','ScheduleState'],
+    lookbackFetchFields: ['ObjectID','_PreviousValues.Blocked','_SnapshotNumber','Name','FormattedID','_ProjectHierarchy','Feature','_TypeHierarchy','Blocked','_ValidFrom','_ValidTo','BlockedReason','c_BlockerOwnerFirstLast','c_BlockerCategory','c_BlockerCreationDate','DirectChildrenCount','Feature','Iteration','ScheduleState'],
     featureHash: {},
     launch: function() {
         var defaultDate = Rally.util.DateTime.add(new Date(),"month",-3);
@@ -176,7 +176,18 @@ Ext.define('blocked-artifact-history', {
         return deferred.promise;
     },
     _renderGrid: function(data){
-        var columns = [{text: 'FormattedID', dataIndex: 'FormattedID'},
+        var columns = [
+            {
+               // xtype: 'templatecolumn',
+                text: 'FormattedID',
+                dataIndex: 'FormattedID',
+                renderer: function(v,m,r){
+                    var link_text = r.get('FormattedID');
+                    if (v){
+                        return Ext.String.format('<a href="{0}">{1}</a>',Rally.nav.Manager.getDetailUrl('/userstory/' +  r.get('ObjectID')),link_text);
+                    }
+                }
+            },
             {text: 'Name', dataIndex: 'Name', flex: 1},
             {text: 'Project', flex: 1, dataIndex: 'Project', renderer: this._objectNameRenderer},
             //    {text: 'Feature', dataIndex: 'Feature', renderer: this._featureOidRenderer},
@@ -253,7 +264,7 @@ Ext.define('blocked-artifact-history', {
 
     _calculateAgingForBlockers: function(snapsByOid){
         this.logger.log('_calculateAgingForBlockers',snapsByOid);
-        var desiredFields = ['FormattedID','Name','Feature','Project','BlockedReason','Blocked','ScheduleState'];
+        var desiredFields = ['ObjectID','FormattedID','Name','Feature','Project','BlockedReason','Blocked','ScheduleState'];
         var data = [];
         var fromDate = this._getFromDate() || null;
 

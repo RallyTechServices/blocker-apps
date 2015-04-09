@@ -101,7 +101,14 @@ Ext.define('CustomApp', {
             xtype: 'rallychart',
             itemId: 'crt',
             loadMask: false,
-            
+            listeners: {
+                readyToRender: function(chart){
+                    console.log('readyToRender');
+                },
+                chartRendered: function(chart){
+                    console.log('chartRendered');
+                }
+            },
             chartColors:['#c42525','#8bbc21'],
             storeConfig: {
                 hydrate: this.hydrate,
@@ -127,16 +134,14 @@ Ext.define('CustomApp', {
                 dateFormat: this.dateFormat,
                 startDate: start_date
             },
-
             chartConfig: {
                 chart: {
                         type: 'column'
-
                     },
                     title: {
                         text: this.chartTitle
                     },
-                    yAxis: {
+                    yAxis: [{
                         min: 0,
                         title: {
                             text: 'Blockers'
@@ -144,7 +149,7 @@ Ext.define('CustomApp', {
                         labels: {
                             format: '{value:.0f}'
                         }
-                    }
+                    }]
              }
         });
     }

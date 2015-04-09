@@ -159,7 +159,7 @@
             //Blocked during month, unblocked during month 
             var series = this._getSeries(snaps_by_oid, buckets);
 
-            var categories = Rally.technicalservices.Toolbox.formatDateBuckets(buckets, this.dateFormat);  
+            var categories = Rally.technicalservices.Toolbox.formatDateBuckets(buckets, this.dateFormat);
             return {categories: categories, series: series};
         },
         _getSeries: function(snaps_by_oid, date_buckets){
