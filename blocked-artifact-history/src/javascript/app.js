@@ -184,7 +184,7 @@ Ext.define('blocked-artifact-history', {
                 renderer: function(v,m,r){
                     var link_text = r.get('FormattedID');
                     if (v){
-                        return Ext.String.format('<a href="{0}">{1}</a>',Rally.nav.Manager.getDetailUrl('/userstory/' +  r.get('ObjectID')),link_text);
+                        return Ext.String.format('<a href="{0}" target="_blank">{1}</a>',Rally.nav.Manager.getDetailUrl('/userstory/' +  r.get('ObjectID')),link_text);
                     }
                 }
             },
