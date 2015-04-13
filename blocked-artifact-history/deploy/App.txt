@@ -3,11 +3,11 @@
 <head>
     <title>Blocked Artifact History</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Apr 09 2015 13:04:40 GMT-0700 (PDT) -->
+    <!--  Build Date: Sun Apr 12 2015 12:14:34 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Apr 09 2015 13:04:40 GMT-0700 (PDT)";
-        var CHECKSUM = 55551315997;
+        var APP_BUILD_DATE = "Sun Apr 12 2015 12:14:34 GMT-0700 (PDT)";
+        var CHECKSUM = 56343940719;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -1111,6 +1111,13 @@ Ext.define('Rally.technicalservices.Toolbox',{
         categories[categories.length-1] += "*";
         return categories;
     },
+    getLinkByOid: function(objectType, objectId, linkText){
+
+        var urlText = Ext.String.format("/{0}/{1}",objectType.toLowerCase(),objectId),
+            url = Rally.nav.Manager.getDetailUrl(urlText);
+
+        return Ext.String.format('<a href="{0}" target="_blank">{1}</a>',url,linkText);
+    }
 
 });
 

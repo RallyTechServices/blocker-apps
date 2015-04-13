@@ -3,10 +3,10 @@
 <head>
     <title>Blocker Percentage of WorkItems</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Fri Jan 23 2015 17:32:58 GMT-0700 (MST) -->
+    <!--  Build Date: Sun Apr 12 2015 12:19:20 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Fri Jan 23 2015 17:32:58 GMT-0700 (MST)";
+        var APP_BUILD_DATE = "Sun Apr 12 2015 12:19:20 GMT-0700 (PDT)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -788,6 +788,64 @@ Ext.define('Rally.technicalservices.Toolbox',{
 
 
 });
+Ext.override(Ext.data.proxy.Server, {
+    timeout : 180000,
+    processResponse: function(success, operation, request, response, callback, scope) {
+        var me = this,
+            reader,
+            result;
+
+        if (success === true) {
+            reader = me.getReader();
+            reader.applyDefaults = operation.action === 'read';
+            result = reader.read(me.extractResponseData(response));
+
+            if (result.success !== false) {
+
+                Ext.apply(operation, {
+                    response: response,
+                    resultSet: result
+                });
+
+                operation.commitRecords(result.records);
+                operation.setCompleted();
+                operation.setSuccessful();
+            } else {
+                operation.setException(result.message);
+                me.fireEvent('exception', this, response, operation);
+            }
+        } else {
+            if (response) {
+                me.setException(operation, response);
+            }
+            me.fireEvent('exception', this, response, operation);
+        }
+
+
+        if (typeof callback == 'function') {
+            callback.call(scope || me, operation);
+        }
+
+        me.afterRequest(request, success);
+    },
+
+
+    setException: function(operation, response) {
+        operation.setException({
+            status: response.status ,
+            statusText: response.statusText
+        });
+    },
+
+
+    extractResponseData: Ext.identityFn,
+
+
+    applyEncoding: function(value) {
+        return Ext.encode(value);
+    },
+});
+
 Ext.define('CustomApp', {
     extend: 'Rally.app.App',
     componentCls: 'app',

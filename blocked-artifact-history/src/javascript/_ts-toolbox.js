@@ -73,5 +73,12 @@ Ext.define('Rally.technicalservices.Toolbox',{
         categories[categories.length-1] += "*";
         return categories;
     },
+    getLinkByOid: function(objectType, objectId, linkText){
+
+        var urlText = Ext.String.format("/{0}/{1}",objectType.toLowerCase(),objectId),
+            url = Rally.nav.Manager.getDetailUrl(urlText);
+
+        return Ext.String.format('<a href="{0}" target="_blank">{1}</a>',url,linkText);
+    }
 
 });
