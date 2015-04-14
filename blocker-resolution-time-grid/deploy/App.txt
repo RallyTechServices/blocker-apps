@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Resolution Time</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Sun Apr 12 2015 12:18:33 GMT-0700 (PDT) -->
+    <!--  Build Date: Mon Apr 13 2015 17:46:25 GMT-0700 (PDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Sun Apr 12 2015 12:18:33 GMT-0700 (PDT)";
-        var CHECKSUM = 33076552620;
+        var APP_BUILD_DATE = "Mon Apr 13 2015 17:46:25 GMT-0700 (PDT)";
+        var CHECKSUM = 33076551382;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
