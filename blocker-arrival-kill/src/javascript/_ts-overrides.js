@@ -3,7 +3,8 @@
  */
 
 Ext.override(Ext.data.proxy.Server, {
-    timeout : 180000,
+    timeout : 180000
+    ,
     processResponse: function(success, operation, request, response, callback, scope) {
         var me = this,
             reader,
@@ -42,7 +43,6 @@ Ext.override(Ext.data.proxy.Server, {
 
         me.afterRequest(request, success);
     },
-
 
     setException: function(operation, response) {
         operation.setException({
