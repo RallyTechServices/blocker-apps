@@ -89,7 +89,7 @@ Ext.define('CustomApp', {
         this.setLoading(mask);
     },
     _buildChart: function(cb){
-        
+        var me = this;
         var start_date = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(Rally.util.DateTime.add(new Date(), "month",cb.getValue()));
         var project = this.getContext().getProject().ObjectID; 
 
@@ -103,10 +103,10 @@ Ext.define('CustomApp', {
             loadMask: false,
             listeners: {
                 readyToRender: function(chart){
-                    console.log('readyToRender');
+                    me.logger.log('readyToRender');
                 },
                 chartRendered: function(chart){
-                    console.log('chartRendered');
+                    me.logger.log('chartRendered');
                 }
             },
             chartColors:['#c42525','#8bbc21'],

@@ -6,7 +6,7 @@
             startDate: null,
             endDate: new Date(),
             granularity: "month",
-            categoryDateFormat: null, 
+            categoryDateFormat: null
         },
 
         /**
@@ -117,6 +117,15 @@
             return [];
         },
 
+        prepareChartData: function (store) {
+            console.log('prepareChartData',store);
+            var snapshots = [];
+            store.each(function (record) {
+                snapshots.push(record.raw);
+            });
+            console.log("ok",snapshots);
+            return this.runCalculation(snapshots);
+        },
         /**
          * Calculate extra chart fields to display on the chart using the fields defined in by the summary metrics
          * configuration. This is passed to the {@link Rally.data.lookback.Lumenize.TimeSeriesCalculator} as
@@ -151,7 +160,7 @@
             return [];
         },
         runCalculation: function (snapshots) {
-            this.logger.log("runCalculations snapshots",snapshots.length, snapshots);
+            this.logger.log("runCalculation snapshots",snapshots.length, snapshots);
             
             var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOid(snapshots); //._aggregateSnapshots(snapshots);
             var buckets = Rally.technicalservices.Toolbox.getDateBuckets(this.startDate, this.endDate, this.granularity); 
@@ -163,7 +172,8 @@
             return {categories: categories, series: series};
         },
         _getSeries: function(snaps_by_oid, date_buckets){
-
+            this.logger.log("_getSeries", snaps_by_oid);
+            
             var blocked_buckets = [];
             var unblocked_buckets = [];
             for (var i=0; i<date_buckets.length; i++){
