@@ -3,11 +3,11 @@
 <head>
     <title>Historical Blocker Reasons</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Sun Apr 12 2015 12:17:38 GMT-0700 (PDT) -->
+    <!--  Build Date: Sat Jun 06 2015 21:49:13 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Sun Apr 12 2015 12:17:38 GMT-0700 (PDT)";
-        var CHECKSUM = 44152517451;
+        var APP_BUILD_DATE = "Sat Jun 06 2015 21:49:13 GMT-0600 (MDT)";
+        var CHECKSUM = 44633073037;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -948,7 +948,7 @@ Ext.define('Rally.technicalservices.Toolbox',{
         },
         _getSeries: function(snaps_by_oid, date_buckets){
 
-            var blocked_durations = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
+           var blocked_durations = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
            var count_data = this.getCountsByReason(blocked_durations);
             
             this.data = count_data.data;  
@@ -963,7 +963,8 @@ Ext.define('Rally.technicalservices.Toolbox',{
             var data = [];  
             Ext.each(blocked_durations, function(duration){
                 if (duration.BlockedReason){
-                    count_key = Rally.technicalservices.Toolbox.getCaseInsensitiveKey(counts, duration.BlockedReason);
+                    var globalReason = this._getGlobalReason(duration.BlockedReason);
+                    count_key = Rally.technicalservices.Toolbox.getCaseInsensitiveKey(counts, globalReason);
                     if (counts[count_key] == undefined){
                         counts[count_key] = 0; 
                     } 
@@ -975,6 +976,13 @@ Ext.define('Rally.technicalservices.Toolbox',{
         },
         getData: function(){
             return this.data;  
+        },
+        _getGlobalReason: function(reason){
+            var match = /^(.*?) - (.*)/.exec(reason);
+            if (match){
+                return match[1].trim();
+            }
+            return reason;
         }
     });
 Ext.override(Ext.data.proxy.Server, {

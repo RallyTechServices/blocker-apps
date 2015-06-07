@@ -158,7 +158,7 @@
         },
         _getSeries: function(snaps_by_oid, date_buckets){
 
-            var blocked_durations = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
+           var blocked_durations = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
            var count_data = this.getCountsByReason(blocked_durations);
             
             this.data = count_data.data;  
@@ -173,7 +173,8 @@
             var data = [];  
             Ext.each(blocked_durations, function(duration){
                 if (duration.BlockedReason){
-                    count_key = Rally.technicalservices.Toolbox.getCaseInsensitiveKey(counts, duration.BlockedReason);
+                    var globalReason = this._getGlobalReason(duration.BlockedReason);
+                    count_key = Rally.technicalservices.Toolbox.getCaseInsensitiveKey(counts, globalReason);
                     if (counts[count_key] == undefined){
                         counts[count_key] = 0; 
                     } 
@@ -185,5 +186,12 @@
         },
         getData: function(){
             return this.data;  
+        },
+        _getGlobalReason: function(reason){
+            var match = /^(.*?) - (.*)/.exec(reason);
+            if (match){
+                return match[1].trim();
+            }
+            return reason;
         }
     });
