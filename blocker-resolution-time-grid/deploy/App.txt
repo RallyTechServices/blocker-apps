@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Resolution Time</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Mon Apr 13 2015 17:46:25 GMT-0700 (PDT) -->
+    <!--  Build Date: Sun Jun 07 2015 12:39:53 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon Apr 13 2015 17:46:25 GMT-0700 (PDT)";
-        var CHECKSUM = 33076551382;
+        var APP_BUILD_DATE = "Sun Jun 07 2015 12:39:53 GMT-0600 (MDT)";
+        var CHECKSUM = 33512632447;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -961,7 +961,8 @@ Ext.define('CustomApp', {
         Ext.each(blocked_durations, function(duration){
             export_data.push(duration);
             if (duration.BlockedReason && duration.BlockedReason.length > 0 && duration.BlockedDate && duration.UnblockedDate){
-                var key= Rally.technicalservices.Toolbox.getCaseInsensitiveKey(reason_data, duration.BlockedReason);
+                var global_reason = this._getGlobalReason(duration.BlockedReason);
+                var key= Rally.technicalservices.Toolbox.getCaseInsensitiveKey(reason_data, global_reason);
                 
                 if (reason_data[key] == undefined){
                     reason_data[key] = [];
@@ -969,9 +970,16 @@ Ext.define('CustomApp', {
                 var daysToResolution = Math.ceil(Rally.util.DateTime.getDifference(duration.UnblockedDate, duration.BlockedDate,"minute")/1440);
                  reason_data[key].push(daysToResolution);
             }
-        });
+        },this);
         this.exportData = export_data; 
         return reason_data; 
+    },
+    _getGlobalReason: function(reason){
+        var match = /^(.*?) - (.*)/.exec(reason);
+        if (match){
+            return match[1].trim();
+        }
+        return reason;
     },
     _calculateStatistics: function(processed_data){
         //Mean, Min, Max, Totals

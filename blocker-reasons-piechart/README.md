@@ -23,8 +23,10 @@ the selected date range.
    only one that will be captured.  
  * If an artifact was blocked and unblocked multiple times during the selected time frame, a blocked reason for each 
    blocked duration will be counted.  
- * Reason counts are case insensitive. 
-   
+ * Reason counts are case insensitive.
+ * Blocker reasons are parsed into a global reason and more specific reason by the presence of a spaced "-" and then aggregated by the global reason for teams that want to aggregate their blockers based on a generic cause, but also provide more specific information.
+   If there is no spaced dash in the reason, then blockers will be aggregated for that category by the entire blocker string.
+
 ##Notes: 
  * Data button will display a grid of data used in the chart creation.  
  * Export will export a comma-delimited file of the current data (FormattedID, Artifact Name, Blocked Reason)  

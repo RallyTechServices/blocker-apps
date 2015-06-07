@@ -113,7 +113,8 @@ Ext.define('CustomApp', {
         Ext.each(blocked_durations, function(duration){
             export_data.push(duration);
             if (duration.BlockedReason && duration.BlockedReason.length > 0 && duration.BlockedDate && duration.UnblockedDate){
-                var key= Rally.technicalservices.Toolbox.getCaseInsensitiveKey(reason_data, duration.BlockedReason);
+                var global_reason = this._getGlobalReason(duration.BlockedReason);
+                var key= Rally.technicalservices.Toolbox.getCaseInsensitiveKey(reason_data, global_reason);
                 
                 if (reason_data[key] == undefined){
                     reason_data[key] = [];
@@ -121,9 +122,16 @@ Ext.define('CustomApp', {
                 var daysToResolution = Math.ceil(Rally.util.DateTime.getDifference(duration.UnblockedDate, duration.BlockedDate,"minute")/1440);
                  reason_data[key].push(daysToResolution);
             }
-        });
+        },this);
         this.exportData = export_data; 
         return reason_data; 
+    },
+    _getGlobalReason: function(reason){
+        var match = /^(.*?) - (.*)/.exec(reason);
+        if (match){
+            return match[1].trim();
+        }
+        return reason;
     },
     _calculateStatistics: function(processed_data){
         //Mean, Min, Max, Totals
