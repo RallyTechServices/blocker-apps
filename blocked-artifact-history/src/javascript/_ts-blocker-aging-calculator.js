@@ -56,6 +56,8 @@ Ext.define('AgingCalculator',{
             var previousValueField = "_PreviousValues." + currentField;
             if (snapsForOid[0][previousValueField] != undefined){
                 previousValue = snapsForOid[0][previousValueField];
+            } else {
+                previousValue = false;
             }
             var isCurrent = false;
             Ext.each(snapsForOid, function(snap){
