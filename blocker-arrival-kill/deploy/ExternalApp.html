@@ -3,10 +3,10 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Apr 14 2015 08:47:36 GMT-0700 (PDT) -->
+    <!--  Build Date: Tue Jan 05 2016 17:00:40 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Apr 14 2015 08:47:36 GMT-0700 (PDT)";
+        var APP_BUILD_DATE = "Tue Jan 05 2016 17:00:40 GMT-0700 (MST)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -528,6 +528,11 @@ Ext.override(Rally.ui.chart.Chart,{
          * specifying:
          *   return [{
          *      "field": "CompletedStoryCount",
+
+
+
+
+
          *      "as": "Completed Stories",
          *      "f": "sum",
          *      "display": "column"
@@ -1199,6 +1204,7 @@ Ext.define('CustomApp', {
                     },
                     yAxis: [{
                         min: 0,
+                        minTickInterval: 1,
                         title: {
                             text: 'Blockers'
                         },

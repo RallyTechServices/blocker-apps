@@ -143,6 +143,7 @@ Ext.define('CustomApp', {
                     },
                     yAxis: [{
                         min: 0,
+                        minTickInterval: 1,
                         title: {
                             text: 'Blockers'
                         },
