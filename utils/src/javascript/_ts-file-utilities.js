@@ -21,7 +21,7 @@ Ext.define('Rally.technicalservices.FileUtilities', {
             // Firefox requires the link to be added to the DOM
             // before it can be clicked.
             downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
-            downloadLink.onclick = destroyClickedElement;
+            downloadLink.onclick = this.destroyClickedElement;
             downloadLink.style.display = "none";
             document.body.appendChild(downloadLink);
         }

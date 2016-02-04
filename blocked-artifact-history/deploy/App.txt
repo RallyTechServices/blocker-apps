@@ -3,11 +3,11 @@
 <head>
     <title>Blocked Artifact History</title>
     <!--  (c) 2015 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Jul 09 2015 09:25:55 GMT-0700 (PDT) -->
+    <!--  Build Date: Thu Feb 04 2016 08:25:49 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Jul 09 2015 09:25:55 GMT-0700 (PDT)";
-        var CHECKSUM = 56433234560;
+        var APP_BUILD_DATE = "Thu Feb 04 2016 08:25:49 GMT-0700 (MST)";
+        var CHECKSUM = 56433227856;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>

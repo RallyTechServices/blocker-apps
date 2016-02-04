@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Arrival Kill</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Jan 05 2016 17:00:40 GMT-0700 (MST) -->
+    <!--  Build Date: Thu Feb 04 2016 08:26:01 GMT-0700 (MST) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Jan 05 2016 17:00:40 GMT-0700 (MST)";
-        var CHECKSUM = 47644857478;
+        var APP_BUILD_DATE = "Thu Feb 04 2016 08:26:01 GMT-0700 (MST)";
+        var CHECKSUM = 47660084551;
     </script>
     
     <script type="text/javascript" src="/apps/2.0/sdk.js"></script>
@@ -406,7 +406,7 @@ Ext.define('Rally.technicalservices.FileUtilities', {
             // Firefox requires the link to be added to the DOM
             // before it can be clicked.
             downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
-            downloadLink.onclick = destroyClickedElement;
+            downloadLink.onclick = this.destroyClickedElement;
             downloadLink.style.display = "none";
             document.body.appendChild(downloadLink);
         }
