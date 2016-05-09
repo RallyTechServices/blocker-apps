@@ -4,6 +4,7 @@ Ext.define('CustomApp', {
     logger: new Rally.technicalservices.Logger(),
     items: [
         {xtype:'container',itemId:'selection_box', layout: {type: 'hbox'}, padding: 10},
+        {xtype:'container',itemId:'time_box', layout: {type: 'hbox'}, padding: 10},
         {xtype:'container',itemId:'display_box'},
         {xtype:'tsinfolink'}
     ],
@@ -22,12 +23,100 @@ Ext.define('CustomApp', {
         this._initialize();
     },
     _initialize: function(){
+
+        var me = this;
+
         var store = Ext.create('Ext.data.Store',{
             fields: ['name','value'],
             data: this.pickerOptions
         });
         
-        var cb = this.down('#selection_box').add({
+        this.down('#selection_box').add(
+        {
+            xtype      : 'radiogroup',
+            fieldLabel : 'Select data for ',
+            defaults: {
+                flex: 1
+            },
+            layout: 'hbox',
+            items: [
+                {
+                    boxLabel  : 'Time Period ',
+                    name      : 'timebox',
+                    inputValue: 'T',
+                    id        : 'radio1',
+                    checked   : true,   
+                }, {
+                    boxLabel  : 'Iteration ',
+                    name      : 'timebox',
+                    inputValue: 'I',
+                    id        : 'radio2'
+                }, {
+                    boxLabel  : 'Release ',
+                    name      : 'timebox',
+                    inputValue: 'R',
+                    id        : 'radio3'
+                }
+            ],
+            listeners:{
+                change: function(rb){
+                    if(rb.lastValue.timebox == 'T'){
+                        me.down('#time_box').removeAll();
+                            me.down('#time_box').add({
+                                xtype: 'combobox',
+                                store: store,
+                                queryMode: 'local',
+                                fieldLabel: 'Show data from',
+                                labelAlign: 'right',
+                                displayField: 'name',
+                                valueField: 'value',
+                                minWidth: 300,
+                                value: -3,
+                                name:'TimePeriod',
+                                listeners: {
+                                    scope: me,
+                                    select: me._buildChart,
+                                    ready:me._buildChart
+                                }
+                            });
+                            
+                    }else if(rb.lastValue.timebox == 'I'){
+                            //console.log('me>>',me);
+                            me.down('#time_box').removeAll();
+                            me.down('#time_box').add({
+                                xtype: 'rallyiterationcombobox',
+                                fieldLabel: 'Iteration: ',
+                                labelAlign: 'right',
+                                minWidth: 300,
+                                listeners: {
+                                    scope: me,
+                                    select: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
+                                    }
+                                }
+                            });
+
+                    }else if(rb.lastValue.timebox == 'R'){
+                            me.down('#time_box').removeAll();
+                            me.down('#time_box').add({
+                                xtype: 'rallyreleasecombobox',
+                                fieldLabel: 'Release: ',
+                                labelAlign: 'right',
+                                minWidth: 300,
+                                value: -3,
+                                listeners: {
+                                    scope: me,
+                                    select: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
+                                    }                                }
+                            });
+                    }
+                }
+            }
+        }
+        );
+
+        var cb = this.down('#time_box').add({
             xtype: 'combobox',
             store: store,
             queryMode: 'local',
@@ -42,6 +131,7 @@ Ext.define('CustomApp', {
                 select: this._buildChart  
             }
         });
+
         this.down('#selection_box').add({
             xtype: 'rallybutton',
             itemId: 'btn-data',
@@ -50,8 +140,99 @@ Ext.define('CustomApp', {
             margin: '0 0 0 10',
             handler: this._viewData
         });
+
         this._buildChart(cb);
     }, 
+
+    _getReleaseOrIterationOids: function(cb) {
+        var me = this;
+        me.logger.log('_getReleaseOrIterationOids',cb);
+        me.timeboxValue = cb;
+        Deft.Chain.parallel([
+                me._getReleasesOrIterations
+        ],me).then({
+            scope: me,
+            success: function(results) {
+                me.logger.log('Results:',results);
+                
+                me.timebox_oids = Ext.Array.map(results[0], function(timebox) {
+                    return timebox.get('ObjectID');
+                });
+                me._buildChart(cb);
+            },
+            failure: function(msg) {
+                Ext.Msg.alert('Problem Loading Timebox data', msg);
+            }
+        });
+    },
+
+
+    _getReleasesOrIterations:function(){
+        var deferred = Ext.create('Deft.Deferred');
+        var me = this;
+        this.logger.log('_getReleasesOrIterations>>',me.timeboxValue);
+
+        var timeboxModel = '';
+        var filters = [];
+
+        if(me.timeboxValue.name == 'Iteration'){
+            timeboxModel = 'Iteration';
+            filters =         [        {
+                    property: 'Name',
+                    operator: '=',
+                    value: me.timeboxValue.getRecord().get('Name')
+                }
+                ,
+                {
+                    property: 'StartDate',
+                    operator: '=',
+                    value: me.timeboxValue.getRecord().get('StartDate').toISOString()
+                },
+                {
+                    property: 'EndDate',
+                    operator: '=',
+                    value: me.timeboxValue.getRecord().get('EndDate').toISOString()
+                }
+            ];
+        }else if(me.timeboxValue.name == 'Release'){
+            timeboxModel = 'Release';  
+            filters =         [        {
+                    property: 'Name',
+                    operator: '=',
+                    value: me.timeboxValue.getRecord().get('Name')
+                }
+                ,
+                {
+                    property: 'ReleaseStartDate',
+                    operator: '=',
+                    value: me.timeboxValue.getRecord().get('ReleaseStartDate').toISOString()
+                },
+                {
+                    property: 'ReleaseDate',
+                    operator: '=',
+                    value: me.timeboxValue.getRecord().get('ReleaseDate').toISOString()
+                }
+            ];
+        }
+
+        Ext.create('Rally.data.wsapi.Store', {
+            model: timeboxModel,
+            fetch: ['ObjectID'],
+            filters: Rally.data.wsapi.Filter.and(filters)
+        }).load({
+            callback : function(records, operation, successful) {
+                if (successful){
+                    //console.log('records',records,'operation',operation,'successful',successful);
+                    deferred.resolve(records);
+                } else {
+                    me.logger.log("Failed: ", operation);
+                    deferred.reject('Problem loading: ' + operation.error.errors.join('. '));
+                }
+            }
+        });
+        return deferred.promise;
+    },
+
     _viewData: function(){
         this.logger.log('_viewData');
         
@@ -79,13 +260,45 @@ Ext.define('CustomApp', {
             });
         }
     },
+
     _buildChart: function(cb){
-        var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
+        var me = this;
+
+        var start_date , end_date = new Date();
+        //var start_date = Rally.util.DateTime.add(new Date(),"month",cb.getValue());
         var project = this.getContext().getProject().ObjectID;  
         
         this.down('#display_box').removeAll();
         
-        this.logger.log('_buildCharts', start_date, project);
+        var find = {$or: [
+                             {"BlockedReason": {$exists: true}},
+                             {"_PreviousValues.BlockedReason": {$exists: true}},
+                             {"Blocked": true},
+                             {"_PreviousValues.Blocked": true}
+                      ],
+                };
+
+        //this.logger.log('_buildCharts', start_date, project);
+
+        if(cb.name == 'Iteration'){
+            find["Iteration"] = { '$in': this.timebox_oids };
+            if(me.timeboxValue){
+                start_date = new Date(me.timeboxValue.getRecord().get('StartDate'));
+                end_date = new Date(me.timeboxValue.getRecord().get('EndDate'));
+            }
+
+        }else if(cb.name == 'Release'){
+            find["Release"] = { '$in': this.timebox_oids };
+            if(me.timeboxValue){
+                start_date = new Date(me.timeboxValue.getRecord().get('ReleaseStartDate'));
+                end_date = new Date(me.timeboxValue.getRecord().get('ReleaseDate'));
+            }
+        }else{
+            start_date = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(Rally.util.DateTime.add(new Date(), "month",cb.getValue()));
+        }
+
+        find["_ValidFrom"] = {$gt: start_date};
+        //find["_ValidTo"] = {$lte: end_date};
         
         this.down('#display_box').add({
             xtype: 'rallychart',
@@ -94,14 +307,7 @@ Ext.define('CustomApp', {
             calculatorConfig: {},
             storeConfig: {
                 fetch: this.fetch,
-                find: {$or: [
-                             {"BlockedReason": {$exists: true}},
-                             {"_PreviousValues.BlockedReason": {$exists: true}},
-                             {"Blocked": true},
-                             {"_PreviousValues.Blocked": true}
-                      ],
-                      "_ValidFrom": {$gte: start_date}
-                },
+                find: find,
                 limit: 'Infinity',
                 filters: [
                     {
