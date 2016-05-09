@@ -28,124 +28,125 @@ Ext.define('CustomApp', {
 
 
     _initialize: function(){
-                    var me = this;
+        var me = this;
 
-                    var store = Ext.create('Ext.data.Store',{
-                        fields: ['name','value'],
-                        data: this.pickerOptions
-                    });
-                    
-                    this.down('#selection_box').add(
-                    {
-                        xtype      : 'radiogroup',
-                        fieldLabel : 'Select data for ',
-                        defaults: {
-                            flex: 1
-                        },
-                        layout: 'hbox',
-                        items: [
-                            {
-                                boxLabel  : 'Time Period ',
-                                name      : 'timebox',
-                                inputValue: 'T',
-                                id        : 'radio1',
-                                checked   : true,   
-                            }, {
-                                boxLabel  : 'Iteration ',
-                                name      : 'timebox',
-                                inputValue: 'I',
-                                id        : 'radio2'
-                            }, {
-                                boxLabel  : 'Release ',
-                                name      : 'timebox',
-                                inputValue: 'R',
-                                id        : 'radio3'
-                            }
-                        ],
-                        listeners:{
-                            change: function(rb){
-                                if(rb.lastValue.timebox == 'T'){
-                                    me.down('#time_box').removeAll();
-                                        me.down('#time_box').add({
-                                            xtype: 'combobox',
-                                            store: store,
-                                            queryMode: 'local',
-                                            fieldLabel: 'Show data from',
-                                            labelAlign: 'right',
-                                            displayField: 'name',
-                                            valueField: 'value',
-                                            minWidth: 300,
-                                            value: -3,
-                                            name:'TimePeriod',
-                                            listeners: {
-                                                scope: me,
-                                                select: me._buildChart,
-                                                ready:me._buildChart
-                                            }
-                                        });
-                                        
-                                }else if(rb.lastValue.timebox == 'I'){
-                                        console.log('me>>',me);
-                                        me.down('#time_box').removeAll();
-                                        me.down('#time_box').add({
-                                            xtype: 'rallyiterationcombobox',
-                                            fieldLabel: 'Iteration: ',
-                                            labelAlign: 'right',
-                                            minWidth: 300,
-                                            listeners: {
-                                                scope: me,
-                                                select: function(icb){
-                                                    console.log('icb>>',icb,me);
-                                                    me._getReleaseOrIterationOids(icb);
-                                                }
-                                            }
-                                        });
-
-                                }else if(rb.lastValue.timebox == 'R'){
-                                        me.down('#time_box').removeAll();
-                                        me.down('#time_box').add({
-                                            xtype: 'rallyreleasecombobox',
-                                            fieldLabel: 'Release: ',
-                                            labelAlign: 'right',
-                                            minWidth: 300,
-                                            value: -3,
-                                            listeners: {
-                                                scope: me,
-                                                change: me._getReleaseOrIterationOids
-                                            }
-                                        });
+        var store = Ext.create('Ext.data.Store',{
+            fields: ['name','value'],
+            data: this.pickerOptions
+        });
+        
+        this.down('#selection_box').add(
+        {
+            xtype      : 'radiogroup',
+            fieldLabel : 'Select data for ',
+            defaults: {
+                flex: 1
+            },
+            layout: 'hbox',
+            items: [
+                {
+                    boxLabel  : 'Time Period ',
+                    name      : 'timebox',
+                    inputValue: 'T',
+                    id        : 'radio1',
+                    checked   : true,   
+                }, {
+                    boxLabel  : 'Iteration ',
+                    name      : 'timebox',
+                    inputValue: 'I',
+                    id        : 'radio2'
+                }, {
+                    boxLabel  : 'Release ',
+                    name      : 'timebox',
+                    inputValue: 'R',
+                    id        : 'radio3'
+                }
+            ],
+            listeners:{
+                change: function(rb){
+                    if(rb.lastValue.timebox == 'T'){
+                        me.down('#time_box').removeAll();
+                            me.down('#time_box').add({
+                                xtype: 'combobox',
+                                store: store,
+                                queryMode: 'local',
+                                fieldLabel: 'Show data from',
+                                labelAlign: 'right',
+                                displayField: 'name',
+                                valueField: 'value',
+                                minWidth: 300,
+                                value: -3,
+                                name:'TimePeriod',
+                                listeners: {
+                                    scope: me,
+                                    select: me._buildChart,
+                                    ready:me._buildChart
                                 }
-                            }
-                        }
-                    }
-                    );
+                            });
+                            
+                    }else if(rb.lastValue.timebox == 'I'){
+                            //console.log('me>>',me);
+                            me.down('#time_box').removeAll();
+                            me.down('#time_box').add({
+                                xtype: 'rallyiterationcombobox',
+                                fieldLabel: 'Iteration: ',
+                                labelAlign: 'right',
+                                minWidth: 300,
+                                listeners: {
+                                    scope: me,
+                                    select: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
+                                    }
+                                }
+                            });
 
-                    var cb = this.down('#time_box').add({
-                        xtype: 'combobox',
-                        store: store,
-                        queryMode: 'local',
-                        fieldLabel: 'Show data from',
-                        labelAlign: 'right',
-                        displayField: 'name',
-                        valueField: 'value',
-                        minWidth: 300,
-                        value: -3,
-                        listeners: {
-                            scope: this,
-                            select: this._buildChart  
-                        }
-                    });
-                    
-                    this.down('#selection_box').add({
-                        xtype: 'rallybutton',
-                        text: 'Data...',
-                        itemId: 'btn-data',
-                        margin: '0 0 0 10',
-                        scope: this, 
-                        handler: this._viewData,
-                        //disabled: true
-                    });
-                    this._buildChart(cb);
+                    }else if(rb.lastValue.timebox == 'R'){
+                            me.down('#time_box').removeAll();
+                            me.down('#time_box').add({
+                                xtype: 'rallyreleasecombobox',
+                                fieldLabel: 'Release: ',
+                                labelAlign: 'right',
+                                minWidth: 300,
+                                value: -3,
+                                listeners: {
+                                    scope: me,
+                                    select: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
+                                    }
+                                }
+                            });
+                    }
+                }
+            }
+        }
+        );
+
+        var cb = this.down('#time_box').add({
+            xtype: 'combobox',
+            store: store,
+            queryMode: 'local',
+            fieldLabel: 'Show data from',
+            labelAlign: 'right',
+            displayField: 'name',
+            valueField: 'value',
+            minWidth: 300,
+            value: -3,
+            listeners: {
+                scope: this,
+                select: this._buildChart  
+            }
+        });
+        
+        this.down('#selection_box').add({
+            xtype: 'rallybutton',
+            text: 'Data...',
+            itemId: 'btn-data',
+            margin: '0 0 0 10',
+            scope: this, 
+            handler: this._viewData,
+            //disabled: true
+        });
+        this._buildChart(cb);
     },    
 
 
@@ -190,12 +191,12 @@ Ext.define('CustomApp', {
                 {
                     property: 'StartDate',
                     operator: '=',
-                    value: me.timeboxValue.getRecord().get('StartDate')
+                    value: me.timeboxValue.getRecord().get('StartDate').toISOString()
                 },
                 {
                     property: 'EndDate',
                     operator: '=',
-                    value: me.timeboxValue.getRecord().get('EndDate')
+                    value: me.timeboxValue.getRecord().get('EndDate').toISOString()
                 }
             ];
         }else if(me.timeboxValue.name == 'Release'){
@@ -208,12 +209,12 @@ Ext.define('CustomApp', {
                 {
                     property: 'ReleaseStartDate',
                     operator: '=',
-                    value: me.timeboxValue.getRecord().get('ReleaseStartDate')
+                    value: me.timeboxValue.getRecord().get('ReleaseStartDate').toISOString()
                 },
                 {
                     property: 'ReleaseDate',
                     operator: '=',
-                    value: me.timeboxValue.getRecord().get('ReleaseDate')
+                    value: me.timeboxValue.getRecord().get('ReleaseDate').toISOString()
                 }
             ];
         }
@@ -225,7 +226,7 @@ Ext.define('CustomApp', {
         }).load({
             callback : function(records, operation, successful) {
                 if (successful){
-                    console.log('records',records,'operation',operation,'successful',successful);
+                    //console.log('records',records,'operation',operation,'successful',successful);
                     deferred.resolve(records);
                 } else {
                     me.logger.log("Failed: ", operation);
@@ -284,25 +285,28 @@ Ext.define('CustomApp', {
                       {"Blocked": true},
                       {"_PreviousValues.Blocked": true}
                 ],
-
                 "_TypeHierarchy": {$in: me.types},
                 "_ProjectHierarchy": {$in: [project]}
         }
 
         if(cb.name == 'Iteration'){
             find["Iteration"] = { '$in': this.timebox_oids };
-            start_date = me.timeboxValue.getRecord().get('StartDate');
-            end_date = me.timeboxValue.getRecord().get('EndDate');
+            if(me.timeboxValue){
+                start_date = new Date(me.timeboxValue.getRecord().get('StartDate'));
+                end_date = new Date(me.timeboxValue.getRecord().get('EndDate'));
+            }
         }else if(cb.name == 'Release'){
             find["Release"] = { '$in': this.timebox_oids };
-            start_date = me.timeboxValue.getRecord().get('ReleaseStartDate');
-            end_date = me.timeboxValue.getRecord().get('ReleaseDate');
+            if(me.timeboxValue){
+                start_date = new Date(me.timeboxValue.getRecord().get('ReleaseStartDate'));
+                end_date = new Date(me.timeboxValue.getRecord().get('ReleaseDate'));
+            }
         }else{
             start_date = Rally.technicalservices.Toolbox.getBeginningOfMonthAsDate(Rally.util.DateTime.add(new Date(), "month",cb.getValue()));
         }
 
         find["_ValidFrom"] = {$gt: start_date};
-        find["_ValidTo"] = {$lte: end_date};
+        //find["_ValidTo"] = {$lte: end_date};
 
         this.logger.log('_buildChart', start_date, project);
 
@@ -314,7 +318,7 @@ Ext.define('CustomApp', {
             loadMask: false,
             listeners: {
                 readyToRender: function(chart){
-                    me.logger.log('readyToRender');
+                    me.logger.log('readyToRender',chart);
                 },
                 chartRendered: function(chart){
                     me.logger.log('chartRendered');
