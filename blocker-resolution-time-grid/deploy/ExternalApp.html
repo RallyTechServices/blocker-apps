@@ -3,10 +3,10 @@
 <head>
     <title>Blocker Resolution Time</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Mon May 09 2016 16:28:27 GMT-0400 (EDT) -->
+    <!--  Build Date: Wed May 25 2016 08:58:38 GMT-0400 (EDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon May 09 2016 16:28:27 GMT-0400 (EDT)";
+        var APP_BUILD_DATE = "Wed May 25 2016 08:58:38 GMT-0400 (EDT)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -948,6 +948,9 @@ Ext.define('CustomApp', {
                                     scope: me,
                                     select: function(icb){
                                         me._getReleaseOrIterationOids(icb);
+                                    },
+                                    ready: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
                                     }
                                 }
                             });
@@ -964,7 +967,11 @@ Ext.define('CustomApp', {
                                     scope: me,
                                     select: function(icb){
                                         me._getReleaseOrIterationOids(icb);
-                                    }                                }
+                                    },
+                                    ready: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
+                                    }                                
+                                }
                             });
                     }
                 }

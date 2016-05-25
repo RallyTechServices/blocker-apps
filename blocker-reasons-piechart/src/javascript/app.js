@@ -92,6 +92,9 @@ Ext.define('CustomApp', {
                                     scope: me,
                                     select: function(icb){
                                         me._getReleaseOrIterationOids(icb);
+                                    },
+                                    ready: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
                                     }
                                 }
                             });
@@ -108,7 +111,11 @@ Ext.define('CustomApp', {
                                     scope: me,
                                     select: function(icb){
                                         me._getReleaseOrIterationOids(icb);
-                                    }                                }
+                                    },
+                                    ready: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
+                                    }                                
+                                }
                             });
                     }
                 }
