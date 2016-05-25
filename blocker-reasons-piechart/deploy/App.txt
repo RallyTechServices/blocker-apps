@@ -3,11 +3,11 @@
 <head>
     <title>Historical Blocker Reasons</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Mon May 09 2016 16:29:04 GMT-0400 (EDT) -->
+    <!--  Build Date: Wed May 25 2016 08:58:26 GMT-0400 (EDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Mon May 09 2016 16:29:04 GMT-0400 (EDT)";
-        var CHECKSUM = 55889000433;
+        var APP_BUILD_DATE = "Wed May 25 2016 08:58:26 GMT-0400 (EDT)";
+        var CHECKSUM = 56259978075;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -1142,6 +1142,9 @@ Ext.define('CustomApp', {
                                     scope: me,
                                     select: function(icb){
                                         me._getReleaseOrIterationOids(icb);
+                                    },
+                                    ready: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
                                     }
                                 }
                             });
@@ -1158,7 +1161,11 @@ Ext.define('CustomApp', {
                                     scope: me,
                                     select: function(icb){
                                         me._getReleaseOrIterationOids(icb);
-                                    }                                }
+                                    },
+                                    ready: function(icb){
+                                        me._getReleaseOrIterationOids(icb);
+                                    }                                
+                                }
                             });
                     }
                 }
