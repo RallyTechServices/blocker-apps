@@ -35,27 +35,29 @@ Ext.define('CustomApp', {
         {
             xtype      : 'radiogroup',
             fieldLabel : 'Select data for ',
-            defaults: {
-                flex: 1
-            },
             layout: 'hbox',
             items: [
                 {
-                    boxLabel  : 'Time Period ',
+                    boxLabel  : 'Time Period',
                     name      : 'timebox',
                     inputValue: 'T',
                     id        : 'radio1',
-                    checked   : true,   
-                }, {
-                    boxLabel  : 'Iteration ',
+                    checked   : true,
+                    margin: '0 0 0 10'
+                }, 
+                {
+                    boxLabel  : 'Iteration',
                     name      : 'timebox',
                     inputValue: 'I',
-                    id        : 'radio2'
-                }, {
-                    boxLabel  : 'Release ',
+                    id        : 'radio2',   
+                    margin: '0 0 0 10'
+                }, 
+                {
+                    boxLabel  : 'Release',
                     name      : 'timebox',
                     inputValue: 'R',
-                    id        : 'radio3'
+                    id        : 'radio3',   
+                    margin: '0 0 0 10'
                 }
             ],
             listeners:{
@@ -67,7 +69,6 @@ Ext.define('CustomApp', {
                                 store: store,
                                 queryMode: 'local',
                                 fieldLabel: 'Show data from',
-                                labelAlign: 'right',
                                 displayField: 'name',
                                 valueField: 'value',
                                 minWidth: 300,
@@ -86,7 +87,6 @@ Ext.define('CustomApp', {
                             me.down('#time_box').add({
                                 xtype: 'rallyiterationcombobox',
                                 fieldLabel: 'Iteration: ',
-                                labelAlign: 'right',
                                 minWidth: 300,
                                 listeners: {
                                     scope: me,
@@ -104,7 +104,6 @@ Ext.define('CustomApp', {
                             me.down('#time_box').add({
                                 xtype: 'rallyreleasecombobox',
                                 fieldLabel: 'Release: ',
-                                labelAlign: 'right',
                                 minWidth: 300,
                                 value: -3,
                                 listeners: {
@@ -128,7 +127,6 @@ Ext.define('CustomApp', {
             store: store,
             queryMode: 'local',
             fieldLabel: 'Show data from',
-            labelAlign: 'right',
             displayField: 'name',
             valueField: 'value',
             minWidth: 300,
@@ -338,14 +336,27 @@ Ext.define('CustomApp', {
                     },
                     plotOptions: {
                         pie: {
+                        //     dataLabels: {
+                        //         enabled: true,
+                        //         format: '<b>{point.name}</b><br/>{point.percentage:.0f}%',
+                        //         distance: 15,
+                        //         overflow: "none",
+                        //         crop: false
+                        //     }
+                        // }
                             dataLabels: {
                                 enabled: true,
-                                format: '<b>{point.name}</b><br/>{point.percentage:.0f}%',
-                                distance: 15,
-                                overflow: "none",
-                                crop: false
-                            }
-                        }
+                                //format: '<b>{point.name.substr(0,10)}</b><br/>{point.percentage:.0f}%',
+                                formatter: function(){
+                                    if (this.point.name.length > 20){
+                                        return '<b>'+ this.point.name.substr(0,20) + '...</b><br/>' + Math.round(this.point.percentage) +'%';
+                                    }else{
+                                        return '<b>'+ this.point.name + '</b><br/>' + Math.round(this.point.percentage) +'%';   
+                                    }                        
+                                },
+                                distance: 15
+                            }   
+                        }                  
                     }
                 }
             });
