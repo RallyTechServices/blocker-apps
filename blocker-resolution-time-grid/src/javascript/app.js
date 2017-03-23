@@ -49,7 +49,8 @@ Ext.define('CustomApp', {
         this.down('#selection_box').add({
             xtype: 'rallybutton',
             itemId: 'btn-export',
-            text: 'Export',
+            iconCls: 'icon-export',
+            cls: 'rly-small secondary',
             margin: '0 0 0 10',
             scope: this, 
             handler: this._exportData
@@ -139,12 +140,29 @@ Ext.define('CustomApp', {
         var total = 0;
         Ext.Object.each(processed_data, function(key,val){
             total += val.length;
-            data.push({reason: key, mean: Math.round(Ext.Array.mean(val)), min: Math.round(Ext.Array.min(val)), max: Math.round(Ext.Array.max(val)), total: val.length});
+            data.push({
+                reason: key,
+                mean: Math.round(Ext.Array.mean(val)),
+                min: Math.round(Ext.Array.min(val)),
+                max: Math.round(Ext.Array.max(val)),
+                total: val.length,
+                totalDuration: Math.round(Ext.Array.sum(val))
+            });
         });
-        
-        var all = _.flatten(_.values(processed_data));
-        data.push({reason: 'All', mean: Math.round(Ext.Array.mean(all)), min: Math.round(Ext.Array.min(all)), max: Math.round(Ext.Array.max(all)), total: total});
-        return data;        
+
+        if (data.length > 0){
+            var all = _.flatten(_.values(processed_data));
+            data.push({
+                reason: 'All',
+                mean: Math.round(Ext.Array.mean(all)),
+                min: Math.round(Ext.Array.min(all)),
+                max: Math.round(Ext.Array.max(all)),
+                total: total,
+                totalDuration: Math.round(Ext.Array.sum(all))
+            });
+        }
+
+        return data;
     }, 
    _exportData: function(){
        var file_name = "blocker-resolution-time-export.csv";
@@ -160,21 +178,48 @@ Ext.define('CustomApp', {
    _buildGrid: function(data){
        
        this.down('#display_box').removeAll();
-       
-       var store = Ext.create('Rally.data.custom.Store',{
-           data: data
-       });
-       
-       var columnCfgs = [];
-       Ext.each(_.keys(data[0]), function(key){
-           columnCfgs.push({text: key, dataIndex: key});
-       });
-       columnCfgs[0]['flex'] = 1;  
-       
-       this.down('#display_box').add({
-           xtype: 'rallygrid',
-           store: store,
-           columnCfgs: columnCfgs
-       });
-   }
+
+       if (data.length > 0){
+           var store = Ext.create('Rally.data.custom.Store',{
+               data: data,
+               pageSize: data.length
+           });
+
+           this.down('#display_box').add({
+               xtype: 'rallygrid',
+               store: store,
+               columnCfgs: this.getColumnCfgs(),
+               showPagingToolbar: false,
+               pageSize: data.length,
+               showRowActionsColumn: false
+           });
+       } else {
+            this.down('#display_box').add({
+                xtype: 'container',
+                html: '<div class="no-data-container"><div class="secondary-message">No blockers found for the selected scope and time period.</div></div>'
+            });
+       }
+   },
+    getColumnCfgs: function(){
+        return [{
+            dataIndex: 'reason',
+            text: 'Reason',
+            flex: 1
+        },{
+            dataIndex: 'mean',
+            text: 'Mean'
+        },{
+            dataIndex: 'min',
+            text: 'Min'
+        },{
+            dataIndex: 'max',
+            text: 'Max'
+        },{
+            dataIndex: 'total',
+            text: 'Total Blockers per Reason'
+        },{
+            dataIndex: 'totalDuration',
+            text: 'Total Days Blocked'
+        }]
+    }
 });
