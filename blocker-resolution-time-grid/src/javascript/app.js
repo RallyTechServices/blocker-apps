@@ -66,9 +66,10 @@ Ext.define('CustomApp', {
             ],
             listeners:{
                 change: function(rb){
+                    me.logger.log('radiobox change', rb.lastValue, rb.getValue());
                     if(rb.lastValue.timebox == 'T'){
                         me.down('#time_box').removeAll();
-                            me.down('#time_box').add({
+                         var cb = me.down('#time_box').add({
                                 xtype: 'combobox',
                                 store: store,
                                 queryMode: 'local',
@@ -84,7 +85,8 @@ Ext.define('CustomApp', {
                                     ready:me._fetchData
                                 }
                             });
-                            
+                        me._fetchData(cb);
+
                     }else if(rb.lastValue.timebox == 'I'){
                             //console.log('me>>',me);
                             me.down('#time_box').removeAll();
@@ -244,7 +246,7 @@ Ext.define('CustomApp', {
 
     _fetchData: function(cb){
         var me = this;
-
+        this.logger.log('_fetchData', cb);
         var start_date , end_date = new Date();
 
         //var start_date = Rally.util.DateTime.toIsoString(Rally.util.DateTime.add(new Date(),"month",cb.getValue()));
