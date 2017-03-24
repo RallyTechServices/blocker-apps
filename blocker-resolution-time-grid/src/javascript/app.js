@@ -111,7 +111,6 @@ Ext.define('CustomApp', {
                                 xtype: 'rallyreleasecombobox',
                                 fieldLabel: 'Release: ',
                                 minWidth: 300,
-                                value: -3,
                                 listeners: {
                                     scope: me,
                                     select: function(icb){

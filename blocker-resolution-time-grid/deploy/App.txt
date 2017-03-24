@@ -3,11 +3,11 @@
 <head>
     <title>Blocker Resolution Time</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Mar 23 2017 16:39:52 GMT-0600 (MDT) -->
+    <!--  Build Date: Fri Mar 24 2017 08:44:20 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Mar 23 2017 16:39:52 GMT-0600 (MDT)";
-        var CHECKSUM = 45647938028;
+        var APP_BUILD_DATE = "Fri Mar 24 2017 08:44:20 GMT-0600 (MDT)";
+        var CHECKSUM = 45624369360;
     </script>
     
     <script type="text/javascript" src="/apps/2.1/sdk.js"></script>
@@ -964,7 +964,6 @@ Ext.define('CustomApp', {
                                 xtype: 'rallyreleasecombobox',
                                 fieldLabel: 'Release: ',
                                 minWidth: 300,
-                                value: -3,
                                 listeners: {
                                     scope: me,
                                     select: function(icb){
