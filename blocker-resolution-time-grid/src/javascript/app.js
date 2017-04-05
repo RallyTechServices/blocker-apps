@@ -321,9 +321,12 @@ Ext.define('CustomApp', {
        var blocked_durations  = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
         
         var export_data = [];  
-        var reason_data = {};  
+        var reason_data = {},
+            thisProject = this.getContext().getProject().Name;
+
         this.logger.log('_processData',snaps_by_oid, blocked_durations);
         Ext.each(blocked_durations, function(duration){
+            duration.Project = thisProject;
             export_data.push(duration);
             if (duration.BlockedReason && duration.BlockedReason.length > 0 && duration.BlockedDate && duration.UnblockedDate){
                 var global_reason = this._getGlobalReason(duration.BlockedReason);
