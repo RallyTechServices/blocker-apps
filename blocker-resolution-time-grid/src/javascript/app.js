@@ -21,7 +21,7 @@ Ext.define('CustomApp', {
      */
     types: ['HierarchicalRequirement','Defect','Task'],
     hydrate: ['_TypeHierarchy'],
-    fetch: ['FormattedID', 'Name', 'Blocked','BlockedReason','_PreviousValues.BlockedReason','_PreviousValues.Blocked'], 
+    fetch: ['FormattedID', 'Name', 'Blocked','BlockedReason','_PreviousValues.BlockedReason','_PreviousValues.Blocked'],
 
     launch: function() {
         this._initialize();
@@ -42,14 +42,16 @@ Ext.define('CustomApp', {
                 flex: 1
             },
             layout: 'hbox',
+            stateful: true,
+            stateId: this.getContext().getScopedStateId('resolution-time-radio'),
+            stateEvents: ['change'],
             items: [
                 {
                     boxLabel  : 'Time Period',
                     name      : 'timebox',
                     inputValue: 'T',
                     id        : 'radio1',
-                    checked   : true,
-                    margin: '0 0 0 10'   
+                    margin: '0 0 0 10'
                 }, {
                     boxLabel  : 'Iteration',
                     name      : 'timebox',
@@ -66,19 +68,24 @@ Ext.define('CustomApp', {
             ],
             listeners:{
                 change: function(rb){
+                    rb.saveState();
                     me.logger.log('radiobox change', rb.lastValue, rb.getValue());
+                    me.down('#time_box').removeAll();
+                    console.log('lastValue', rb.lastValue.timebox);
                     if(rb.lastValue.timebox == 'T'){
-                        me.down('#time_box').removeAll();
                          var cb = me.down('#time_box').add({
-                                xtype: 'combobox',
+                                xtype: 'rallycombobox',
                                 store: store,
                                 queryMode: 'local',
                                 fieldLabel: 'Show data from',
                                 displayField: 'name',
                                 valueField: 'value',
                                 minWidth: 300,
-                                value: -3,
+                                //value: -3,
                                 name:'TimePeriod',
+                                stateful: true,
+                                stateId: me.getContext().getScopedStateId('blocker-resolution-timeperiod'),
+                                //stateEvents: ['select'],
                                 listeners: {
                                     scope: me,
                                     select: me._fetchData,
@@ -89,11 +96,13 @@ Ext.define('CustomApp', {
 
                     }else if(rb.lastValue.timebox == 'I'){
                             //console.log('me>>',me);
-                            me.down('#time_box').removeAll();
+
                             me.down('#time_box').add({
                                 xtype: 'rallyiterationcombobox',
                                 fieldLabel: 'Iteration: ',
                                 minWidth: 300,
+                                stateful: true,
+                                stateId: me.getContext().getScopedStateId('blocker-resolution-iteration'),
                                 listeners: {
                                     scope: me,
                                     select: function(icb){
@@ -106,11 +115,13 @@ Ext.define('CustomApp', {
                             });
 
                     }else if(rb.lastValue.timebox == 'R'){
-                            me.down('#time_box').removeAll();
+
                             me.down('#time_box').add({
                                 xtype: 'rallyreleasecombobox',
                                 fieldLabel: 'Release: ',
                                 minWidth: 300,
+                                stateful: true,
+                                stateId: me.getContext().getScopedStateId('blocker-resolution-release'),
                                 listeners: {
                                     scope: me,
                                     select: function(icb){
@@ -118,7 +129,7 @@ Ext.define('CustomApp', {
                                     },
                                     ready: function(icb){
                                         me._getReleaseOrIterationOids(icb);
-                                    }                                
+                                    }
                                 }
                             });
                     }
@@ -127,32 +138,32 @@ Ext.define('CustomApp', {
         }
         );
 
-        
-        var cb = this.down('#time_box').add({
-            xtype: 'combobox',
-            store: store,
-            queryMode: 'local',
-            fieldLabel: 'Show data from',
-            displayField: 'name',
-            valueField: 'value',
-            value: -3,
-            minWidth: 300,
-            listeners: {
-                scope: this,
-                select: this._fetchData  
-            }
-        });
+
+        // var cb = this.down('#time_box').add({
+        //     xtype: 'combobox',
+        //     store: store,
+        //     queryMode: 'local',
+        //     fieldLabel: 'Show data from',
+        //     displayField: 'name',
+        //     valueField: 'value',
+        //     value: -3,
+        //     minWidth: 300,
+        //     listeners: {
+        //         scope: this,
+        //         select: this._fetchData
+        //     }
+        // });
         this.down('#selection_box').add({
             xtype: 'rallybutton',
             itemId: 'btn-export',
             iconCls: 'icon-export',
             cls: 'rly-small secondary',
             margin: '0 0 0 10',
-            scope: this, 
+            scope: this,
             handler: this._exportData
         });
         this._fetchData(cb);
-    },    
+    },
 
     _getReleaseOrIterationOids: function(cb) {
         var me = this;
@@ -164,7 +175,7 @@ Ext.define('CustomApp', {
             scope: me,
             success: function(results) {
                 me.logger.log('Results:',results);
-                
+
                 me.timebox_oids = Ext.Array.map(results[0], function(timebox) {
                     return timebox.get('ObjectID');
                 });
@@ -205,7 +216,7 @@ Ext.define('CustomApp', {
                 }
             ];
         }else if(me.timeboxValue.name == 'Release'){
-            timeboxModel = 'Release';  
+            timeboxModel = 'Release';
             filters =         [        {
                     property: 'Name',
                     operator: '=',
@@ -249,8 +260,8 @@ Ext.define('CustomApp', {
         var start_date , end_date = new Date();
 
         //var start_date = Rally.util.DateTime.toIsoString(Rally.util.DateTime.add(new Date(),"month",cb.getValue()));
-        var project = this.getContext().getProject().ObjectID;  
-        
+        var project = this.getContext().getProject().ObjectID;
+
         var find = {
                $or: [
                      {"BlockedReason": {$exists: true}},
@@ -291,7 +302,7 @@ Ext.define('CustomApp', {
                 } else {
                     if (response && response.status !== 200) {
                         self.queryValid = false;
-                    } 
+                    }
                     if (response && response.status === 409) {
                         self.workspaceHalted = true;
                     } else if (response && response.status === 503) {
@@ -300,7 +311,7 @@ Ext.define('CustomApp', {
                 }
             },
             fetch: this.fetch,
-            compress: true, 
+            compress: true,
             limit: 'Infinity',
             find: find,
             removeUnauthorizedSnapshots: true,
@@ -311,16 +322,16 @@ Ext.define('CustomApp', {
     },
     _mungeDataAndBuildGrid: function(store, data, success){
         this.logger.log('_mungeDataAndBuildGrid',data);
-        
+
         var snaps_by_oid = Rally.technicalservices.Toolbox.aggregateSnapsByOidForModel(data);
         var processed_data = this._processData(snaps_by_oid);
         var statistics_data = this._calculateStatistics(processed_data);
         this._buildGrid(statistics_data);
-    },  
+    },
     _processData: function(snaps_by_oid){
        var blocked_durations  = Rally.technicalservices.BlockedToolbox.getBlockedDurations(snaps_by_oid);
-        
-        var export_data = [];  
+
+        var export_data = [];
         var reason_data = {},
             thisProject = this.getContext().getProject().Name;
 
@@ -331,7 +342,7 @@ Ext.define('CustomApp', {
             if (duration.BlockedReason && duration.BlockedReason.length > 0 && duration.BlockedDate && duration.UnblockedDate){
                 var global_reason = this._getGlobalReason(duration.BlockedReason);
                 var key= Rally.technicalservices.Toolbox.getCaseInsensitiveKey(reason_data, global_reason);
-                
+
                 if (reason_data[key] == undefined){
                     reason_data[key] = [];
                 }
@@ -339,8 +350,8 @@ Ext.define('CustomApp', {
                  reason_data[key].push(daysToResolution);
             }
         },this);
-        this.exportData = export_data; 
-        return reason_data; 
+        this.exportData = export_data;
+        return reason_data;
     },
     _getGlobalReason: function(reason){
         var match = /^(.*?) - (.*)/.exec(reason);
@@ -378,7 +389,7 @@ Ext.define('CustomApp', {
         }
 
         return data;
-    }, 
+    },
    _exportData: function(){
        var file_name = "blocker-resolution-time-export.csv";
        var data_hash = {};
@@ -386,12 +397,12 @@ Ext.define('CustomApp', {
            data_hash[key] = key;
        });
        this.logger.log('_export',data_hash, this.exportData);
-       
+
        var export_text = Rally.technicalservices.FileUtilities.convertDataArrayToCSVText(this.exportData, data_hash);
        Rally.technicalservices.FileUtilities.saveTextAsFile(export_text,file_name);
    },
    _buildGrid: function(data){
-       
+
        this.down('#display_box').removeAll();
 
        if (data.length > 0){
